@@ -49,9 +49,18 @@ export default function DeploymentsPage() {
 
       <div className="flex-1 px-6 py-4">
         {loading ? (
-          <div className="flex flex-col gap-2">
+          <div className="border border-foreground/10 flex flex-col">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-foreground/5 animate-pulse" />
+              <div key={i} className={`flex items-center gap-4 px-4 py-3 ${i < 4 ? "border-b border-foreground/10" : ""}`}>
+                <div className="h-3 w-24 animate-pulse bg-foreground/10 shrink-0" />
+                <div className="flex-1 flex flex-col gap-1.5">
+                  <div className="h-3 w-48 animate-pulse bg-foreground/10" />
+                  <div className="h-2.5 w-64 animate-pulse bg-foreground/10" />
+                </div>
+                <div className="h-4 w-16 animate-pulse bg-foreground/10 shrink-0" />
+                <div className="h-3 w-20 animate-pulse bg-foreground/10 shrink-0" />
+                <div className="h-3 w-16 animate-pulse bg-foreground/10 shrink-0" />
+              </div>
             ))}
           </div>
         ) : filtered.length === 0 ? (

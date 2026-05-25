@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Trash2, RefreshCw, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,7 @@ export default function EnvPage() {
   const [newTarget, setNewTarget] = useState(["production", "preview", "development"]);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const { toast } = useToast();
 
   async function load() {
     setLoading(true);
@@ -33,20 +36,31 @@ export default function EnvPage() {
     e.preventDefault();
     if (!newKey.trim() || !newValue.trim()) return;
     setSaving(true);
-    await fetch("/api/vercel/env", {
+    const res = await fetch("/api/vercel/env", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key: newKey.trim(), value: newValue.trim(), target: newTarget }),
     });
+    if (res.ok) {
+      toast({ title: "Variable saved", description: `${newKey.trim()} has been added.` });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast({ title: "Failed to save variable", description: data?.error ?? "An error occurred.", variant: "destructive" });
+    }
     setNewKey(""); setNewValue(""); setShowAdd(false); setSaving(false);
     load();
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, key: string) {
     if (!confirm("Delete this variable?")) return;
-    await fetch("/api/vercel/env", {
+    const res = await fetch("/api/vercel/env", {
       method: "DELETE", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
     });
+    if (res.ok) {
+      toast({ title: "Variable deleted", description: `${key} has been removed.` });
+    } else {
+      toast({ title: "Failed to delete variable", variant: "destructive" });
+    }
     load();
   }
 
@@ -63,6 +77,7 @@ export default function EnvPage() {
 
   return (
     <div className="flex flex-col min-h-full">
+      <Toaster />
       <div className="flex items-center justify-between px-6 py-3 border-b border-foreground/10 shrink-0">
         <h1 className="text-sm font-medium">Environment Variables</h1>
         <div className="flex items-center gap-2">
@@ -119,7 +134,24 @@ export default function EnvPage() {
         )}
 
         {loading ? (
-          <div className="flex flex-col gap-2">{[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-foreground/5 animate-pulse" />)}</div>
+          <div className="border border-foreground/10 flex flex-col">
+            <div className="grid grid-cols-[1fr_120px_80px] px-4 py-2 border-b border-foreground/10 bg-foreground/[0.02]">
+              <div className="h-2.5 w-8 animate-pulse bg-foreground/10" />
+              <div className="h-2.5 w-20 animate-pulse bg-foreground/10" />
+              <div className="h-2.5 w-8 animate-pulse bg-foreground/10" />
+            </div>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className={`grid grid-cols-[1fr_120px_80px_auto] items-center px-4 py-2.5 ${i < 5 ? "border-b border-foreground/10" : ""}`}>
+                <div className="h-3.5 w-40 animate-pulse bg-foreground/10" />
+                <div className="flex gap-1">
+                  <div className="h-4 w-8 animate-pulse bg-foreground/10" />
+                  <div className="h-4 w-8 animate-pulse bg-foreground/10" />
+                </div>
+                <div className="h-3 w-12 animate-pulse bg-foreground/10" />
+                <div className="h-6 w-6 animate-pulse bg-foreground/10" />
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="border border-foreground/10">
             <div className="grid grid-cols-[1fr_120px_80px] px-4 py-2 border-b border-foreground/10 bg-foreground/[0.02]">
@@ -143,7 +175,7 @@ export default function EnvPage() {
                   ))}
                 </div>
                 <span className="text-xs font-mono text-muted-foreground">{env.type}</span>
-                <button onClick={() => handleDelete(env.id)}
+                <button onClick={() => handleDelete(env.id, env.key)}
                   className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors duration-150">
                   <Trash2 className="w-3 h-3" />
                 </button>

@@ -78,18 +78,18 @@ Complete the Masidy platform by implementing all missing functionality across th
   - Add install buttons per integration in the integrations dashboard page
   - Show toast on success/failure
 
-- [ ] 16. Feature Flags — implement basic feature flag CRUD with Supabase storage
+- [x] 16. Feature Flags — implement basic feature flag CRUD with Supabase storage
   - Create a `feature_flags` table in Supabase (id, name, enabled, created_at, user_id)
   - Create API routes for GET/POST/PATCH/DELETE feature flags
   - Update the flags dashboard page to list, create, toggle, and delete flags
   - Add confirmation dialog for delete; toast for all actions
 
-- [~] 17. CDN — add cache purge functionality via Vercel API
+- [x] 17. CDN — add cache purge functionality via Vercel API
   - Add a cache purge endpoint under `app/api/vercel/`
   - Add a "Purge Cache" button in the CDN dashboard page
   - Show toast on success/failure
 
-- [~] 18. Agent sessions page — show real chat history from Supabase
+- [ ] 18. Agent sessions page — show real chat history from Supabase
   - Create `app/dashboard/agent/sessions/page.tsx`
   - Fetch chat history from Supabase messages/sessions table
   - Render sessions list with timestamps and message previews

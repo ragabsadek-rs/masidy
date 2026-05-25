@@ -2,62 +2,71 @@
 
 import { useState, useEffect } from "react";
 import { CREDIT_PACKS } from "@/lib/stripe";
-import { Loader2, Zap, Check } from "lucide-react";
+import { Zap, Check } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 export const dynamic = "force-dynamic";
 
 export default function BillingPage() {
+  const { toast } = useToast();
   const [balance, setBalance] = useState<number | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
   const [loading, setLoading] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   useEffect(() => {
+    setBalanceLoading(true);
     fetch("/api/credits/balance")
       .then((r) => r.json())
-      .then((d) => setBalance(d.balance));
+      .then((d) => {
+        setBalance(d.balance);
+        setBalanceLoading(false);
+      })
+      .catch(() => setBalanceLoading(false));
 
     // Show success/cancel toast from Stripe redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get("success")) {
       const credits = params.get("credits");
-      setToast({ type: "success", msg: `${credits} credits added to your account!` });
+      toast({ title: "Credits added", description: `${credits} credits have been added to your account.` });
       window.history.replaceState({}, "", "/dashboard/billing");
     }
     if (params.get("cancelled")) {
-      setToast({ type: "error", msg: "Payment cancelled." });
+      toast({ title: "Payment cancelled", description: "Your payment was not completed.", variant: "destructive" });
       window.history.replaceState({}, "", "/dashboard/billing");
     }
   }, []);
 
   async function buyPack(packId: string) {
     setLoading(packId);
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packId }),
-    });
-    const { url } = await res.json();
-    if (url) window.location.href = url;
-    else setLoading(null);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packId }),
+      });
+      const { url } = await res.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        toast({ title: "Checkout failed", description: "Could not start checkout. Please try again.", variant: "destructive" });
+        setLoading(null);
+      }
+    } catch {
+      toast({ title: "Checkout failed", description: "An unexpected error occurred.", variant: "destructive" });
+      setLoading(null);
+    }
   }
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 text-sm border shadow-lg ${
-          toast.type === "success"
-            ? "bg-background border-green-500/20 text-green-600"
-            : "bg-background border-destructive/20 text-destructive"
-        }`}>
-          {toast.type === "success" ? "✓" : "✗"} {toast.msg}
-          <button onClick={() => setToast(null)} className="ml-2 text-muted-foreground hover:text-foreground">✕</button>
-        </div>
-      )}
+      <Toaster />
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-2.5 border-b border-foreground/10 shrink-0">
-        <span className="text-sm font-medium">Billing & Credits</span>
-        {balance !== null && (
+        <span className="text-sm font-medium">Billing &amp; Credits</span>
+        {balanceLoading ? (
+          <div className="h-4 w-32 animate-pulse bg-foreground/10" />
+        ) : balance !== null && (
           <div className="flex items-center gap-1.5 text-xs font-mono">
             <Zap className="w-3.5 h-3.5 text-blue-500" />
             <span className="font-medium">{balance}</span>
@@ -74,41 +83,65 @@ export default function BillingPage() {
           <p className="text-sm text-muted-foreground mb-6">Pay only for what you use. Credits never expire.</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {CREDIT_PACKS.map((pack) => {
-            const perCredit = (pack.price / 100 / pack.credits).toFixed(3);
-            const popular = pack.id === "pack_20";
-            return (
-              <div key={pack.id}
-                className={`border p-5 flex flex-col gap-3 transition-colors duration-150 ${popular ? "border-foreground" : "border-foreground/10 hover:border-foreground/25"}`}>
-                {popular && (
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-foreground bg-foreground/8 px-2 py-0.5 w-fit">
-                    Most popular
-                  </span>
-                )}
-                <div>
-                  <p className="text-2xl font-display">{pack.label}</p>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    <span className="text-foreground font-medium">{pack.credits}</span> credits
-                  </p>
-                  <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">${perCredit} per credit</p>
+        {balanceLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="border border-foreground/10 p-5 flex flex-col gap-3">
+                <div className="h-7 w-20 animate-pulse bg-foreground/10" />
+                <div className="h-4 w-28 animate-pulse bg-foreground/10" />
+                <div className="h-3 w-24 animate-pulse bg-foreground/10" />
+                <div className="flex flex-col gap-1.5">
+                  <div className="h-3 w-full animate-pulse bg-foreground/10" />
+                  <div className="h-3 w-full animate-pulse bg-foreground/10" />
                 </div>
-                <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-                  <li className="flex items-center gap-1.5"><Check className="w-3 h-3 text-green-500" />Never expire</li>
-                  <li className="flex items-center gap-1.5"><Check className="w-3 h-3 text-green-500" />All models included</li>
-                </ul>
-                <button onClick={() => buyPack(pack.id)} disabled={loading === pack.id}
-                  className={`w-full h-9 text-sm font-medium flex items-center justify-center gap-2 transition-colors duration-150 disabled:opacity-50 ${
-                    popular
-                      ? "bg-foreground text-background hover:bg-foreground/90"
-                      : "border border-foreground/15 hover:bg-foreground/5"
-                  }`}>
-                  {loading === pack.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : `Buy ${pack.label}`}
-                </button>
+                <div className="h-9 w-full animate-pulse bg-foreground/10" />
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {CREDIT_PACKS.map((pack) => {
+              const perCredit = (pack.price / 100 / pack.credits).toFixed(3);
+              const popular = pack.id === "pack_20";
+              return (
+                <div key={pack.id}
+                  className={`border p-5 flex flex-col gap-3 transition-colors duration-150 ${popular ? "border-foreground" : "border-foreground/10 hover:border-foreground/25"}`}>
+                  {popular && (
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-foreground bg-foreground/8 px-2 py-0.5 w-fit">
+                      Most popular
+                    </span>
+                  )}
+                  <div>
+                    <p className="text-2xl font-display">{pack.label}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      <span className="text-foreground font-medium">{pack.credits}</span> credits
+                    </p>
+                    <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5">${perCredit} per credit</p>
+                  </div>
+                  <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                    <li className="flex items-center gap-1.5"><Check className="w-3 h-3 text-green-500" />Never expire</li>
+                    <li className="flex items-center gap-1.5"><Check className="w-3 h-3 text-green-500" />All models included</li>
+                  </ul>
+                  <button onClick={() => buyPack(pack.id)} disabled={loading === pack.id}
+                    className={`w-full h-9 text-sm font-medium flex items-center justify-center gap-2 transition-colors duration-150 disabled:opacity-50 ${
+                      popular
+                        ? "bg-foreground text-background hover:bg-foreground/90"
+                        : "border border-foreground/15 hover:bg-foreground/5"
+                    }`}>
+                    {loading === pack.id ? (
+                      <span className="flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <span key={i} className="w-1 h-1 rounded-full bg-current animate-bounce"
+                            style={{ animationDelay: `${i * 100}ms` }} />
+                        ))}
+                      </span>
+                    ) : `Buy ${pack.label}`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Credit costs reference */}
         <div className="mt-10">

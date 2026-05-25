@@ -84,8 +84,13 @@ export default function LogsPage() {
       {/* Log output */}
       <div className="flex-1 overflow-auto bg-foreground/[0.015] font-mono text-xs p-4">
         {loading ? (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <RefreshCw className="w-3 h-3 animate-spin" /> Loading logs…
+          <div className="flex flex-col gap-1.5">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="flex gap-3">
+                <div className="h-3.5 w-24 shrink-0 animate-pulse bg-foreground/10" />
+                <div className="h-3.5 animate-pulse bg-foreground/10" style={{ width: `${40 + (i * 37) % 50}%` }} />
+              </div>
+            ))}
           </div>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground">No logs found{filter ? ` matching "${filter}"` : ""}</p>

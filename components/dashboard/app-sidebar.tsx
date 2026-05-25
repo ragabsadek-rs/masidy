@@ -20,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Link from "next/link";
 
@@ -72,6 +73,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<{ email: string; name: string; initial: string } | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -95,6 +97,12 @@ export function AppSidebar() {
     await supabase.auth.signOut();
     window.location.href = "/";
   }
+
+  const filteredNavItems = searchQuery.trim()
+    ? navItems.filter(item =>
+        item.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : navItems;
 
   return (
     <Sidebar collapsible="icon">
@@ -121,9 +129,50 @@ export function AppSidebar() {
         {/* Search */}
         <div className="relative mt-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <input placeholder="Find…"
-            className="w-full h-7 pl-8 pr-6 text-xs bg-foreground/[0.03] border border-foreground/10 outline-none placeholder:text-muted-foreground/60 font-sans" />
-          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/60">F</kbd>
+          <input
+            placeholder="Find…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full h-7 pl-8 pr-6 text-xs bg-foreground/[0.03] border border-foreground/10 outline-none placeholder:text-muted-foreground/60 font-sans"
+          />
+          {searchQuery ? (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors duration-150"
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          ) : (
+            <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono text-muted-foreground/60">F</kbd>
+          )}
+        </div>
+
+        {/* Bell */}
+        <div className="flex justify-end mt-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="p-1 text-muted-foreground hover:text-foreground transition-colors duration-150"
+                aria-label="Notifications"
+              >
+                <Bell className="w-3.5 h-3.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={6}
+              className="w-64 p-0 bg-background border border-foreground/10 rounded-none shadow-lg"
+            >
+              <div className="px-4 py-3 border-b border-foreground/10">
+                <p className="text-xs font-medium">Notifications</p>
+              </div>
+              <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
+                <Bell className="w-6 h-6 text-muted-foreground/20" />
+                <p className="text-xs text-muted-foreground">No notifications</p>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </SidebarHeader>
 
@@ -132,9 +181,15 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <NavItem key={item.label} item={item} currentPath={pathname} />
-              ))}
+              {filteredNavItems.length > 0 ? (
+                filteredNavItems.map((item) => (
+                  <NavItem key={item.label} item={item} currentPath={pathname} />
+                ))
+              ) : (
+                <li className="px-3 py-4 text-center">
+                  <p className="text-xs text-muted-foreground">No results for &ldquo;{searchQuery}&rdquo;</p>
+                </li>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
