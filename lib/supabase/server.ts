@@ -1,15 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+// Standard client — respects RLS, uses anon key
 export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    // Return stub during build / when Supabase not configured
     return {
       auth: { getUser: async () => ({ data: { user: null }, error: null }) },
-      from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: null }) }) }), insert: async () => ({}), update: () => ({ eq: async () => ({}) }), upsert: async () => ({}) }),
+      from: () => ({
+        select: () => ({ eq: () => ({ single: async () => ({ data: null }) }) }),
+        insert: async () => ({}),
+        update: () => ({ eq: async () => ({}) }),
+        upsert: async () => ({}),
+      }),
     } as unknown as Awaited<ReturnType<typeof createServerClient>>;
   }
 
@@ -25,5 +30,28 @@ export async function createClient() {
         } catch {}
       },
     },
+  });
+}
+
+// Admin client — bypasses RLS, uses service role key
+// Only use server-side in API routes, never expose to client
+export function createAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    return {
+      from: () => ({
+        select: () => ({ eq: () => ({ single: async () => ({ data: null }) }) }),
+        insert: async () => ({}),
+        update: () => ({ eq: async () => ({}) }),
+        upsert: async () => ({}),
+      }),
+    } as unknown as ReturnType<typeof createServerClient>;
+  }
+
+  return createServerClient(url, serviceKey, {
+    cookies: { getAll: () => [], setAll: () => {} },
+    auth: { persistSession: false },
   });
 }

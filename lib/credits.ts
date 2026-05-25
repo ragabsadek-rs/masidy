@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { CREDIT_COSTS, type CreditAction } from "@/lib/stripe";
 
 export async function getCredits(userId: string): Promise<number> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("credits")
     .select("balance")
@@ -16,10 +16,9 @@ export async function deductCredits(
   action: CreditAction,
   description: string
 ): Promise<{ success: boolean; remaining: number; error?: string }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const cost = CREDIT_COSTS[action];
 
-  // Get current balance
   const { data: creditRow } = await supabase
     .from("credits")
     .select("balance")
@@ -32,15 +31,13 @@ export async function deductCredits(
     return { success: false, remaining: balance, error: "Insufficient credits" };
   }
 
-  const newBalance = balance - cost;
+  const newBalance = Number(balance) - cost;
 
-  // Update balance
   await supabase
     .from("credits")
     .update({ balance: newBalance, updated_at: new Date().toISOString() })
     .eq("user_id", userId);
 
-  // Log transaction
   await supabase.from("credit_transactions").insert({
     user_id: userId,
     action,
@@ -57,7 +54,7 @@ export async function addCredits(
   amount: number,
   description: string
 ): Promise<number> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: creditRow } = await supabase
     .from("credits")
@@ -66,7 +63,7 @@ export async function addCredits(
     .single();
 
   const current = creditRow?.balance ?? 0;
-  const newBalance = current + amount;
+  const newBalance = Number(current) + amount;
 
   await supabase
     .from("credits")
