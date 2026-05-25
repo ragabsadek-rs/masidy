@@ -1,23 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDomains, addDomain, removeDomain } from "@/lib/vercel";
+import { AddDomainSchema, DeleteDomainSchema, parseBody } from "@/lib/validation";
 
 export async function GET() {
   try {
-    const domains = await getDomains();
-    return NextResponse.json(domains);
+    return NextResponse.json(await getDomains());
   } catch {
-    return NextResponse.json({ error: "Failed" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch domains" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  const { domain } = await req.json();
-  const result = await addDomain(domain);
-  return NextResponse.json(result);
+  const body = await req.json().catch(() => null);
+  const { data, error } = parseBody(AddDomainSchema, body);
+  if (error || !data) return NextResponse.json({ error: error ?? "Invalid request" }, { status: 400 });
+
+  try {
+    return NextResponse.json(await addDomain(data.domain));
+  } catch {
+    return NextResponse.json({ error: "Failed to add domain" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
-  const { domain } = await req.json();
-  const result = await removeDomain(domain);
-  return NextResponse.json(result);
+  const body = await req.json().catch(() => null);
+  const { data, error } = parseBody(DeleteDomainSchema, body);
+  if (error || !data) return NextResponse.json({ error: error ?? "Invalid request" }, { status: 400 });
+
+  try {
+    return NextResponse.json(await removeDomain(data.domain));
+  } catch {
+    return NextResponse.json({ error: "Failed to remove domain" }, { status: 500 });
+  }
 }

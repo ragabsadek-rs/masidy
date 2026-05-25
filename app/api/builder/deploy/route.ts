@@ -1,14 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
+import { BuilderDeployRequestSchema, parseBody } from "@/lib/validation";
+import { rateLimit } from "@/lib/ratelimit";
+import { createClient } from "@/lib/supabase/server";
+import { deductCredits } from "@/lib/credits";
 
 const TOKEN = process.env.VERCEL_ACCESS_TOKEN!;
 const TEAM  = process.env.VERCEL_TEAM_ID!;
 
-interface FileNode { path: string; content: string; language?: string; }
-
 export async function POST(req: NextRequest) {
   try {
-    const { files, projectName } = await req.json() as { files: FileNode[]; projectName?: string };
-    if (!files?.length) return NextResponse.json({ error: "No files" }, { status: 400 });
+    // Auth
+    let userId: string | null = null;
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      userId = user.id;
+    }
+
+    // Rate limit
+    const key = userId ?? req.headers.get("x-forwarded-for") ?? "anon";
+    const { success } = rateLimit(`deploy:${key}`, 10, 60_000);
+    if (!success) return NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } });
+
+    // Validate
+    const body = await req.json().catch(() => null);
+    const { data, error } = parseBody(BuilderDeployRequestSchema, body);
+    if (error || !data) return NextResponse.json({ error: error ?? "Invalid request" }, { status: 400 });
+
+    const { files, projectName } = data;
 
     const name = (projectName ?? `masidy-${Date.now()}`).toLowerCase().replace(/[^a-z0-9-]/g, "-");
 
@@ -32,7 +52,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const res = await fetch(`https://api.vercel.com/v13/deployments?teamId=${TEAM}`, {
+    const deployRes = await fetch(`https://api.vercel.com/v13/deployments?teamId=${TEAM}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -43,16 +63,16 @@ export async function POST(req: NextRequest) {
       }),
     });
 
-    const data = await res.json();
+    const deployData = await deployRes.json();
 
-    if (!res.ok) {
-      return NextResponse.json({ error: data.error?.message ?? "Deploy failed" }, { status: res.status });
+    if (!deployRes.ok) {
+      return NextResponse.json({ error: deployData.error?.message ?? "Deploy failed" }, { status: deployRes.status });
     }
 
     // Poll for ready state (max 60s)
-    const deployId = data.id;
-    let url = data.url;
-    let state = data.readyState ?? data.status;
+    const deployId = deployData.id;
+    let url = deployData.url;
+    let state = deployData.readyState ?? deployData.status;
 
     for (let i = 0; i < 30; i++) {
       if (state === "READY" || state === "ERROR" || state === "CANCELED") break;
