@@ -9,11 +9,24 @@ export const dynamic = "force-dynamic";
 export default function BillingPage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/credits/balance")
       .then((r) => r.json())
       .then((d) => setBalance(d.balance));
+
+    // Show success/cancel toast from Stripe redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success")) {
+      const credits = params.get("credits");
+      setToast({ type: "success", msg: `${credits} credits added to your account!` });
+      window.history.replaceState({}, "", "/dashboard/billing");
+    }
+    if (params.get("cancelled")) {
+      setToast({ type: "error", msg: "Payment cancelled." });
+      window.history.replaceState({}, "", "/dashboard/billing");
+    }
   }, []);
 
   async function buyPack(packId: string) {
@@ -30,6 +43,17 @@ export default function BillingPage() {
 
   return (
     <div className="flex flex-col min-h-full">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 text-sm border shadow-lg ${
+          toast.type === "success"
+            ? "bg-background border-green-500/20 text-green-600"
+            : "bg-background border-destructive/20 text-destructive"
+        }`}>
+          {toast.type === "success" ? "✓" : "✗"} {toast.msg}
+          <button onClick={() => setToast(null)} className="ml-2 text-muted-foreground hover:text-foreground">✕</button>
+        </div>
+      )}
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-2.5 border-b border-foreground/10 shrink-0">
         <span className="text-sm font-medium">Billing & Credits</span>
