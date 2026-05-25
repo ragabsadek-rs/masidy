@@ -2,6 +2,7 @@
 
 import { useState, useCallback, Suspense, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { FileTree, FileNode } from "@/components/builder/file-tree";
 import { CodeEditor } from "@/components/builder/code-editor";
@@ -444,7 +445,7 @@ function RightToolbar({ tab, onTab, chatCollapsed, onToggleChat, viewport, onVie
           ))}
           <div className="w-px h-4 bg-foreground/10 mx-1" />
           <span className="text-xs font-mono text-muted-foreground px-1 truncate max-w-[100px]">
-            {previewUrl ? "/" : "/"}
+            {previewUrl ? previewUrl : "/"}
           </span>
         </>
       )}
@@ -545,6 +546,7 @@ function DatabaseTab() {
 // ── Main ───────────────────────────────────────────────────────────────────
 function BuilderContent() {
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [files, setFiles] = useState<FileNode[]>([]);
   const [activeFile, setActiveFile] = useState<FileNode | null>(null);
@@ -558,6 +560,10 @@ function BuilderContent() {
   const [previewKey, setPreviewKey] = useState(0);
   const [credits, setCredits] = useState<number | null>(null);
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  // Track the active polling interval so we can clear it
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track deploy error for the preview pane
+  const [deployError, setDeployError] = useState<string | null>(null);
 
   // Load credits
   useEffect(() => {
@@ -632,32 +638,176 @@ function BuilderContent() {
     if (!files.length) return;
     setIsDeploying(true);
     setShowTerminal(true);
-    const ts = () => new Date().toISOString().split("T")[1].slice(0, 12);
+    setRightTab("preview");
+    setDeployError(null);
+
+    const ts = () => `[${new Date().toISOString().split("T")[1].slice(0, 12)}]`;
+
+    // Reset terminal and show initial log
     setTerminalLogs([`${ts()} [INFO] Starting deployment…`]);
+
+    // ── Helper: stream an array of log lines with a small delay ──────────
+    async function streamLogs(lines: string[], delayMs = 120) {
+      for (const line of lines) {
+        await new Promise<void>((r) => setTimeout(r, delayMs));
+        setTerminalLogs((prev) => [...prev, line]);
+      }
+    }
+
+    // ── Helper: fetch live build events from Vercel logs API ─────────────
+    let seenEventIds = new Set<string>();
+    async function pollLogs(deploymentId: string) {
+      try {
+        const res = await fetch(`/api/vercel/logs?deploymentId=${deploymentId}`);
+        if (!res.ok) return;
+        const events: Array<{ id?: string; type?: string; payload?: { text?: string; date?: number } }> = await res.json();
+        const newLines: string[] = [];
+        for (const ev of events) {
+          const key = ev.id ?? JSON.stringify(ev);
+          if (seenEventIds.has(key)) continue;
+          seenEventIds.add(key);
+          const text = ev.payload?.text?.trim();
+          if (text) {
+            const prefix = ev.type === "stderr" ? "[WARN]" : "[LOG] ";
+            newLines.push(`${ts()} ${prefix} ${text}`);
+          }
+        }
+        if (newLines.length > 0) {
+          setTerminalLogs((prev) => [...prev, ...newLines]);
+        }
+      } catch {
+        // Silently ignore poll errors — they're non-critical
+      }
+    }
+
+    let deploymentId: string | null = null;
+
     try {
-      const res = await fetch("/api/builder/deploy", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      // Start the deploy request (server-side polls Vercel until ready)
+      const deployPromise = fetch("/api/builder/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ files, projectName: `masidy-${Date.now()}` }),
       });
+
+      // While waiting for the deploy to finish, show a pulsing "building" log
+      // and poll for live build events every 3 seconds once we have a deploymentId.
+      // We get the deploymentId from the response, so we start polling after the
+      // first response arrives. For now, show periodic status messages.
+      const buildingMessages = [
+        "Installing dependencies…",
+        "Compiling TypeScript…",
+        "Building Next.js app…",
+        "Optimising assets…",
+        "Uploading to edge network…",
+      ];
+      let msgIdx = 0;
+      const buildingInterval = setInterval(() => {
+        if (msgIdx < buildingMessages.length) {
+          setTerminalLogs((prev) => [...prev, `${ts()} [INFO] ${buildingMessages[msgIdx++]}`]);
+        }
+        // If we have a deploymentId, also poll for real log events
+        if (deploymentId) {
+          pollLogs(deploymentId);
+        }
+      }, 3000);
+      pollIntervalRef.current = buildingInterval;
+
+      const res = await deployPromise;
+      clearInterval(buildingInterval);
+      pollIntervalRef.current = null;
+
       const data = await res.json();
-      if (data.url) {
-        setPreviewUrl(data.url);
-        setRightTab("preview");
-        setTerminalLogs(prev => [...prev,
-          `${ts()} [INFO] ✓ Build complete`,
-          `${ts()} [INFO] ✓ Deployed: ${data.url}`,
+
+      if (!res.ok || data.error) {
+        // ── Error path ────────────────────────────────────────────────────
+        const errMsg = data.error ?? "Deployment failed. Please try again.";
+
+        // Stream any logs returned by the API
+        if (Array.isArray(data.logs) && data.logs.length > 0) {
+          await streamLogs(data.logs, 80);
+        }
+
+        setTerminalLogs((prev) => [
+          ...prev,
+          `${ts()} [ERROR] ${errMsg}`,
         ]);
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(), role: "assistant",
-          content: `✓ Deployed!\n\nLive URL: ${data.url}`,
-          timestamp: new Date(),
-        }]);
+
+        setDeployError(errMsg);
+
+        toast({
+          title: "Deploy failed",
+          description: errMsg,
+          variant: "destructive",
+        });
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: `Deploy failed: ${errMsg}`,
+            timestamp: new Date(),
+          },
+        ]);
       } else {
-        setTerminalLogs(prev => [...prev, `${ts()} [ERROR] Deploy failed: ${data.error ?? "Unknown error"}`]);
+        // ── Success path ──────────────────────────────────────────────────
+        deploymentId = data.deploymentId ?? null;
+
+        // Do one final poll for any remaining log events
+        if (deploymentId) {
+          await pollLogs(deploymentId);
+        }
+
+        // Stream the logs returned by the API (server already collected them)
+        if (Array.isArray(data.logs) && data.logs.length > 0) {
+          await streamLogs(data.logs, 80);
+        }
+
+        setTerminalLogs((prev) => [
+          ...prev,
+          `${ts()} [INFO] ✓ Build complete`,
+          `${ts()} [INFO] ✓ Live at: ${data.url}`,
+        ]);
+
+        // Set the iframe to the live URL
+        setPreviewUrl(data.url);
+        setPreviewKey((k) => k + 1);
+        setRightTab("preview");
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: `✓ Deployed!\n\nLive URL: ${data.url}`,
+            timestamp: new Date(),
+          },
+        ]);
       }
-    } catch {
-      setTerminalLogs(prev => [...prev, `${ts()} [ERROR] Deploy failed`]);
-    } finally { setIsDeploying(false); }
+    } catch (err) {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      const isNetworkError = err instanceof TypeError && err.message.toLowerCase().includes("fetch");
+      const errMsg = isNetworkError
+        ? "Network error — check your connection and try again."
+        : "Deployment failed. Please try again.";
+      setTerminalLogs((prev) => [...prev, `${ts()} [ERROR] ${errMsg}`]);
+      setDeployError(errMsg);
+      toast({
+        title: "Deploy failed",
+        description: errMsg,
+        variant: "destructive",
+      });
+    } finally {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      setIsDeploying(false);
+    }
   }
 
   function handleFileChange(path: string, content: string) {
@@ -702,10 +852,40 @@ function BuilderContent() {
                   <div className="flex-1 overflow-hidden">
                     {rightTab === "preview" && (
                       <div className="h-full flex items-start justify-center bg-foreground/[0.015] overflow-auto">
-                        {previewUrl ? (
+                        {isDeploying ? (
+                          // Loading skeleton while deploy is in progress
+                          <div className="w-full h-full p-6 flex flex-col gap-4">
+                            <div className="h-8 w-1/3 animate-pulse bg-foreground/10" />
+                            <div className="h-4 w-2/3 animate-pulse bg-foreground/10" />
+                            <div className="h-4 w-1/2 animate-pulse bg-foreground/10" />
+                            <div className="flex gap-4 mt-2">
+                              <div className="h-32 flex-1 animate-pulse bg-foreground/10" />
+                              <div className="h-32 flex-1 animate-pulse bg-foreground/10" />
+                            </div>
+                            <div className="h-4 w-3/4 animate-pulse bg-foreground/10" />
+                            <div className="h-4 w-1/2 animate-pulse bg-foreground/10" />
+                            <div className="h-48 w-full animate-pulse bg-foreground/10" />
+                          </div>
+                        ) : deployError ? (
+                          // Error state
+                          <div className="flex flex-col items-center justify-center h-full gap-3">
+                            <div className="w-8 h-8 border border-red-500/30 flex items-center justify-center">
+                              <X className="w-4 h-4 text-red-500" />
+                            </div>
+                            <p className="text-xs text-red-500 font-medium">Deploy failed</p>
+                            <p className="text-[10px] text-muted-foreground font-mono max-w-[280px] text-center">{deployError}</p>
+                            <button
+                              onClick={handleDeploy}
+                              className="text-xs border border-foreground/15 px-3 h-7 hover:border-foreground/30 hover:bg-foreground/5 transition-all duration-150 mt-1"
+                            >
+                              Retry deploy
+                            </button>
+                          </div>
+                        ) : previewUrl ? (
                           <div className="h-full transition-all duration-300" style={{ width: vpWidth, maxWidth: "100%" }}>
                             <iframe key={previewKey} src={previewUrl} className="w-full h-full border-0"
-                              title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
+                              title="Live Preview"
+                              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" />
                           </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -745,10 +925,37 @@ function BuilderContent() {
               <div className="flex-1 overflow-hidden">
                 {rightTab === "preview" && (
                   <div className="h-full flex items-start justify-center bg-foreground/[0.015] overflow-auto">
-                    {previewUrl ? (
+                    {isDeploying ? (
+                      <div className="w-full h-full p-6 flex flex-col gap-4">
+                        <div className="h-8 w-1/3 animate-pulse bg-foreground/10" />
+                        <div className="h-4 w-2/3 animate-pulse bg-foreground/10" />
+                        <div className="h-4 w-1/2 animate-pulse bg-foreground/10" />
+                        <div className="flex gap-4 mt-2">
+                          <div className="h-32 flex-1 animate-pulse bg-foreground/10" />
+                          <div className="h-32 flex-1 animate-pulse bg-foreground/10" />
+                        </div>
+                        <div className="h-4 w-3/4 animate-pulse bg-foreground/10" />
+                        <div className="h-48 w-full animate-pulse bg-foreground/10" />
+                      </div>
+                    ) : deployError ? (
+                      <div className="flex flex-col items-center justify-center h-full gap-3">
+                        <div className="w-8 h-8 border border-red-500/30 flex items-center justify-center">
+                          <X className="w-4 h-4 text-red-500" />
+                        </div>
+                        <p className="text-xs text-red-500 font-medium">Deploy failed</p>
+                        <p className="text-[10px] text-muted-foreground font-mono max-w-[280px] text-center">{deployError}</p>
+                        <button
+                          onClick={handleDeploy}
+                          className="text-xs border border-foreground/15 px-3 h-7 hover:border-foreground/30 hover:bg-foreground/5 transition-all duration-150 mt-1"
+                        >
+                          Retry deploy
+                        </button>
+                      </div>
+                    ) : previewUrl ? (
                       <div className="h-full transition-all duration-300" style={{ width: vpWidth, maxWidth: "100%" }}>
                         <iframe key={previewKey} src={previewUrl} className="w-full h-full border-0"
-                          title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
+                          title="Live Preview"
+                          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals allow-downloads" />
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full gap-3">

@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
           description: "Welcome bonus — 10 free credits",
           balance_after: 10,
         });
+        // Send new users through onboarding
+        return NextResponse.redirect(`${origin}/onboarding`);
       }
 
       return NextResponse.redirect(`${origin}${redirect}`);

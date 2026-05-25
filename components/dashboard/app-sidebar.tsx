@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard, Layers, ScrollText, BarChart2, Zap, Eye,
@@ -43,11 +44,22 @@ const navItems = [
 ];
 
 function NavItem({ item, currentPath }: { item: typeof navItems[0]; currentPath: string }) {
-  const isActive = currentPath === item.href || (item.href !== "/dashboard" && currentPath.startsWith(item.href));
+  const isActive =
+    currentPath === item.href ||
+    (item.href !== "/dashboard" && item.href !== "/builder" && currentPath.startsWith(item.href));
+
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive}>
-        <Link href={item.href} className="flex items-center gap-2">
+        <Link
+          href={item.href}
+          className={[
+            "flex items-center gap-2 border-l-2 transition-colors duration-300",
+            isActive
+              ? "border-foreground text-foreground font-medium bg-foreground/5"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:bg-foreground/5",
+          ].join(" ")}
+        >
           <item.icon className="w-4 h-4 shrink-0" />
           <span>{item.label}</span>
         </Link>
@@ -57,13 +69,11 @@ function NavItem({ item, currentPath }: { item: typeof navItems[0]; currentPath:
 }
 
 export function AppSidebar() {
+  const pathname = usePathname();
   const [user, setUser] = useState<{ email: string; name: string; initial: string } | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
-  const [currentPath, setCurrentPath] = useState("/dashboard");
 
   useEffect(() => {
-    setCurrentPath(window.location.pathname);
-
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) {
@@ -123,7 +133,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item) => (
-                <NavItem key={item.label} item={item} currentPath={currentPath} />
+                <NavItem key={item.label} item={item} currentPath={pathname} />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -157,7 +167,7 @@ export function AppSidebar() {
                   </div>
                 )}
                 <DropdownMenuItem className="text-xs" asChild>
-                  <Link href="/dashboard"><User className="w-3.5 h-3.5 mr-2" />Profile</Link>
+                  <Link href="/dashboard/profile"><User className="w-3.5 h-3.5 mr-2" />Profile</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="text-xs" asChild>
                   <Link href="/dashboard/billing"><CreditCard className="w-3.5 h-3.5 mr-2" />
