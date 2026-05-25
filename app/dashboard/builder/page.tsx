@@ -35,7 +35,7 @@ function BuilderContent() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [showFileTree, setShowFileTree] = useState(true);
 
-  // Send message to Claude agent
+  // Send message to Masidy agent
   const handleSend = useCallback(async (content: string, model: AgentModel) => {
     const userMsg: Message = {
       id: crypto.randomUUID(),

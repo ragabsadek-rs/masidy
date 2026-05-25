@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HardDrive, ExternalLink, Plus, RefreshCw } from "lucide-react";
+import { HardDrive, ExternalLink, Plus } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-interface Store { id: string; name: string; type: string; region?: string; createdAt?: number; }
+interface Store { id: string; name: string; type: string; region?: string; }
 
 export default function StoragePage() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -24,12 +24,9 @@ export default function StoragePage() {
     <div className="flex flex-col min-h-full">
       <div className="flex items-center justify-between px-6 py-3 border-b border-foreground/10 shrink-0">
         <h1 className="text-sm font-medium">Storage</h1>
-        <div className="flex items-center gap-2">
-          <a href="https://vercel.com/storage" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs bg-foreground text-background px-3 h-7 font-medium hover:bg-foreground/90 transition-colors duration-150">
-            <Plus className="w-3 h-3" />Create Store
-          </a>
-        </div>
+        <button className="flex items-center gap-1.5 text-xs bg-foreground text-background px-3 h-7 font-medium hover:bg-foreground/90 transition-colors duration-150">
+          <Plus className="w-3 h-3" />Create Store
+        </button>
       </div>
       <div className="flex-1 px-6 py-6 max-w-3xl">
         {loading ? (
@@ -39,10 +36,8 @@ export default function StoragePage() {
             <HardDrive className="w-10 h-10 text-muted-foreground/20" />
             <div>
               <p className="text-sm font-medium mb-1">No storage connected</p>
-              <p className="text-xs text-muted-foreground max-w-xs">Connect Vercel KV, Postgres, or Blob storage to manage your data here.</p>
+              <p className="text-xs text-muted-foreground max-w-xs">Connect KV, Postgres, or Blob storage to manage your data here.</p>
             </div>
-            <a href="https://vercel.com/docs/storage" target="_blank" rel="noopener noreferrer"
-              className="text-xs text-blue-500 hover:underline">Learn about Vercel Storage →</a>
           </div>
         ) : (
           <div className="border border-foreground/10">
@@ -51,12 +46,8 @@ export default function StoragePage() {
                 <HardDrive className="w-5 h-5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{typeLabel[s.type] ?? s.type} {s.region ? `· ${s.region}` : ""}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{typeLabel[s.type] ?? s.type}{s.region ? ` · ${s.region}` : ""}</p>
                 </div>
-                <a href={`https://vercel.com/storage/${s.id}`} target="_blank" rel="noopener noreferrer"
-                  className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150">
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
               </div>
             ))}
           </div>
