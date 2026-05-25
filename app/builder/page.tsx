@@ -41,8 +41,7 @@ const VIEWPORTS: { key: Viewport; icon: React.ReactNode; w: string }[] = [
 ];
 
 const MODELS = [
-  { id: "standard", label: "Masidy Auto",     icon: "M" },
-  { id: "lite",     label: "Masidy Mini",     icon: "M" },
+  { id: "lite",     label: "Masidy Lite",     icon: "M" },
   { id: "standard", label: "Masidy Standard", icon: "M" },
   { id: "opus",     label: "Masidy Max",      icon: "M" },
 ];
@@ -118,8 +117,8 @@ function ChatPanel({ messages, isLoading, onSend, onReset, credits }: {
   credits: number | null;
 }) {
   const [input, setInput] = useState("");
-  const [model, setModel] = useState<AgentModel>("standard");
-  const [modelLabel, setModelLabel] = useState("Masidy Auto");
+  const [model, setModel] = useState<AgentModel>("lite");
+  const [modelLabel, setModelLabel] = useState("Masidy Lite");
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [generateImages, setGenerateImages] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);

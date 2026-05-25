@@ -11,26 +11,79 @@ const MODEL_MAP = {
   opus:     { model: "claude-opus-4-5",   action: "message_opus"     as CreditAction },
 };
 
+// Strict system prompt that forces JSON output every time
+const SYSTEM_PROMPT = `You are Masidy, an AI software engineer inside a code editor.
+
+CRITICAL RULE: You MUST ALWAYS respond with ONLY a valid JSON object. Never write prose, markdown, or code blocks outside of JSON. Your entire response must be parseable JSON.
+
+Response format (ALWAYS use this exact structure):
+{
+  "explanation": "1-2 sentence summary of what you built or changed",
+  "files": [
+    {
+      "path": "app/page.tsx",
+      "content": "full file content here",
+      "language": "typescript"
+    }
+  ]
+}
+
+Rules:
+- ALWAYS include "files" array, even if empty
+- For build requests: include ALL files needed (page.tsx, components, styles, etc.)
+- File paths are relative (e.g. "app/page.tsx", "components/Button.tsx")
+- Use Next.js 14 App Router, TypeScript, Tailwind CSS
+- Write complete, working files — never truncate with "..." or "rest of code"
+- For pure questions with no code needed: set "files" to []
+- Do NOT wrap your response in markdown code blocks
+- Do NOT add any text before or after the JSON object`;
+
+function extractJSON(text: string): { explanation: string; files: { path: string; content: string; language: string }[] } | null {
+  // Try 1: direct parse
+  try { return JSON.parse(text.trim()); } catch {}
+
+  // Try 2: extract from markdown code block ```json ... ```
+  const codeBlock = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+  if (codeBlock) {
+    try { return JSON.parse(codeBlock[1]); } catch {}
+  }
+
+  // Try 3: find the outermost { } using bracket counting
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (text[i] === "}") {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        try { return JSON.parse(text.slice(start, i + 1)); } catch {}
+        start = -1;
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // ── Auth (required) ──────────────────────────────────────────────────
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
 
+    // ── Auth ─────────────────────────────────────────────────────────────
     let userId: string | null = null;
-
     if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-      }
+      if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
       userId = user.id;
     }
 
-    // ── Rate limiting ────────────────────────────────────────────────────
+    // ── Rate limit ───────────────────────────────────────────────────────
     const rateLimitKey = userId ?? req.headers.get("x-forwarded-for") ?? "anonymous";
-    const { success: rateLimitOk, remaining } = rateLimit(`chat:${rateLimitKey}`, 30, 60_000);
+    const { success: rateLimitOk } = rateLimit(`chat:${rateLimitKey}`, 30, 60_000);
     if (!rateLimitOk) {
       return NextResponse.json(
         { error: "Too many requests. Please wait a moment." },
@@ -38,7 +91,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Input validation ─────────────────────────────────────────────────
+    // ── Validate ─────────────────────────────────────────────────────────
     const body = await req.json().catch(() => null);
     const { data, error: validationError } = parseBody(BuilderChatRequestSchema, body);
     if (validationError || !data) {
@@ -46,9 +99,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { messages, model } = data;
-    const tier = MODEL_MAP[model] ?? MODEL_MAP.standard;
+    const tier = MODEL_MAP[model] ?? MODEL_MAP.lite;
 
-    // ── Credit deduction ─────────────────────────────────────────────────
+    // ── Deduct credits ───────────────────────────────────────────────────
     if (userId) {
       const result = await deductCredits(userId, tier.action, `Masidy ${model} message`);
       if (!result.success) {
@@ -59,19 +112,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── AI call ──────────────────────────────────────────────────────────
-    const systemPrompt = `You are Masidy, an expert AI software engineer.
-When asked to build or modify code, respond with JSON:
-{
-  "explanation": "brief explanation",
-  "files": [
-    { "path": "relative/path.tsx", "content": "full file content", "language": "typescript" }
-  ],
-  "preview_url": null
-}
-Use TypeScript, Tailwind CSS, and modern React patterns.
-For questions only: { "explanation": "your answer", "files": [] }`;
-
+    // ── Call AI ──────────────────────────────────────────────────────────
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -82,7 +123,7 @@ For questions only: { "explanation": "your answer", "files": [] }`;
       body: JSON.stringify({
         model: tier.model,
         max_tokens: 8192,
-        system: systemPrompt,
+        system: SYSTEM_PROMPT,
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
       }),
     });
@@ -94,14 +135,24 @@ For questions only: { "explanation": "your answer", "files": [] }`;
     }
 
     const aiData = await response.json();
-    const text = aiData.content?.[0]?.text ?? "";
+    const text = (aiData.content?.[0]?.text ?? "").trim();
 
-    try {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return NextResponse.json(JSON.parse(jsonMatch[0]));
-    } catch {}
+    // Parse JSON from response
+    const parsed = extractJSON(text);
+    if (parsed) {
+      return NextResponse.json({
+        explanation: parsed.explanation ?? "Done.",
+        files: Array.isArray(parsed.files) ? parsed.files : [],
+      });
+    }
 
-    return NextResponse.json({ explanation: text, files: [] });
+    // Fallback: AI didn't return JSON — return as explanation with no files
+    console.warn("AI returned non-JSON response:", text.slice(0, 200));
+    return NextResponse.json({
+      explanation: text.length > 500 ? text.slice(0, 500) + "…" : text,
+      files: [],
+    });
+
   } catch (err) {
     console.error("Builder chat error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

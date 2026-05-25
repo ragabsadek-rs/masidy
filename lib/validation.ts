@@ -6,7 +6,7 @@ export const BuilderChatRequestSchema = z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string().min(1).max(32000),
   })).min(1).max(100),
-  model: z.enum(["lite", "standard", "opus"]).default("standard"),
+  model: z.enum(["lite", "standard", "opus"]).default("lite"),
 });
 
 // ── Builder deploy ─────────────────────────────────────────────────────────
