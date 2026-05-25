@@ -1,398 +1,306 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  GitBranch,
-  GitCommit,
-  Globe,
-  Github,
-  RotateCcw,
-  ExternalLink,
-  ChevronDown,
-  ChevronRight,
-  Maximize2,
-  Search,
-  MoreHorizontal,
-  Eye,
-  BarChart2,
-  CheckCircle2,
-  Circle,
-  AlertCircle,
-  Activity,
+  GitBranch, GitCommit, Globe, Github, RotateCcw, ExternalLink,
+  ChevronDown, ChevronRight, Search, MoreHorizontal, Eye,
+  BarChart2, CheckCircle2, Circle, Activity, RefreshCw, Zap,
 } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { deploymentStatusColor, timeAgo } from "@/lib/vercel";
+import Link from "next/link";
 
-// ── Mock data ──────────────────────────────────────────────────────────────
+export const dynamic = "force-dynamic";
 
-const checklistItems = [
-  { label: "Connect Git Repository", done: true },
-  { label: "Add Custom Domain", done: false },
-  { label: "Preview Deployment", done: true },
-  { label: "Enable Web Analytics", done: true },
-  { label: "Enable Speed Insights", done: false },
-];
-
-const observabilityData = [
-  { time: "00:00", requests: 0 },
-  { time: "04:00", requests: 0 },
-  { time: "08:00", requests: 0 },
-  { time: "12:00", requests: 0 },
-  { time: "16:00", requests: 0 },
-  { time: "20:00", requests: 0 },
-  { time: "24:00", requests: 0 },
-];
-
-const branches = [
-  {
-    name: "v0/ragabsadek91-9468-712cabd4",
-    preview: "8x3ocR6jn",
-    previewColor: "bg-orange-500",
-    source: "Source",
-    author: "v0[bot]",
-    authorColor: "bg-purple-500",
-    time: "37m ago",
-  },
-];
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="text-xs font-mono text-muted-foreground">{children}</span>
-  );
+interface Deployment {
+  uid: string; url: string; state: string; created: number; target?: string;
+  meta?: { githubCommitRef?: string; githubCommitMessage?: string; githubCommitSha?: string; githubCommitAuthorName?: string };
 }
+interface Domain { name: string; verified: boolean; }
+interface ProjectData { project: { name: string; framework?: string; link?: { type: string; repo?: string } }; domains: Domain[]; deployments: Deployment[]; }
 
-function StatCard({
-  label,
-  timeRange,
-  children,
-  href,
-}: {
-  label: string;
-  timeRange: string;
-  children: React.ReactNode;
-  href?: string;
-}) {
-  return (
-    <div className="border border-foreground/10 p-4 flex flex-col gap-3 hover:border-foreground/20 transition-colors duration-200">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{label}</span>
-          <span className="text-xs text-muted-foreground font-mono">{timeRange}</span>
-        </div>
-        {href && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
-      </div>
-      {children}
-    </div>
-  );
+function SkeletonBlock({ h = "h-4", w = "w-full" }: { h?: string; w?: string }) {
+  return <div className={`${h} ${w} bg-foreground/8 animate-pulse`} />;
 }
-
-function ProductionDeployment() {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  return (
-    <div className="border border-foreground/10">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-foreground/10">
-        <span className="text-sm font-medium">Production Deployment</span>
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-1.5 text-xs text-muted-foreground border border-foreground/10 px-3 h-7 hover:border-foreground/25 hover:text-foreground transition-colors duration-150">
-            <ExternalLink className="w-3 h-3" />
-            Open in
-          </button>
-          <button className="flex items-center gap-1.5 text-xs text-muted-foreground border border-foreground/10 px-3 h-7 hover:border-foreground/25 hover:text-foreground transition-colors duration-150">
-            <Github className="w-3 h-3" />
-            Repository
-          </button>
-          <button className="flex items-center gap-1.5 text-xs text-muted-foreground border border-foreground/10 px-3 h-7 hover:border-foreground/25 hover:text-foreground transition-colors duration-150">
-            <RotateCcw className="w-3 h-3" />
-            Instant Rollback
-          </button>
-          <div className="flex">
-            <button className="flex items-center gap-1.5 text-xs bg-foreground text-background px-3 h-7 font-medium hover:bg-foreground/90 transition-colors duration-150">
-              Visit
-            </button>
-            <button className="flex items-center bg-foreground text-background px-2 h-7 border-l border-background/20 hover:bg-foreground/90 transition-colors duration-150">
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="grid grid-cols-[280px_1fr_auto] gap-0">
-        {/* Preview thumbnail */}
-        <div className="border-r border-foreground/10 bg-foreground/[0.02] flex items-center justify-center min-h-[160px]">
-          <div className="w-full h-full p-4 flex flex-col gap-1.5 opacity-30">
-            {[95, 70, 85, 60, 80, 65].map((w, i) => (
-              <div key={i} className="h-2 bg-foreground/20 rounded-sm" style={{ width: `${w}%` }} />
-            ))}
-          </div>
-        </div>
-
-        {/* Deployment info */}
-        <div className="p-5 flex flex-col gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Deployment</p>
-            <p className="text-sm font-mono text-blue-500 hover:underline cursor-pointer">
-              v0-optimus-the-ai-platform-to-653bajxx1.vercel.app
-            </p>
-          </div>
-          <div>
-            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-              <Globe className="w-3 h-3" />
-              Domains
-            </div>
-            <p className="text-sm font-mono text-blue-500 hover:underline cursor-pointer flex items-center gap-1">
-              v0-optimus-the-ai-platform-to-bu-wine-eta.vercel.app
-              <ExternalLink className="w-3 h-3" />
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Status</p>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
-                <span className="text-sm font-medium">Ready</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Created</p>
-              <p className="text-sm">47m ago by v0[bot]</p>
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Source</p>
-            <div className="flex items-center gap-1.5 text-sm">
-              <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>main</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-sm mt-1">
-              <GitCommit className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="font-mono text-xs text-muted-foreground">eebcfad</span>
-              <span className="text-xs text-muted-foreground">Add README.md</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Activity icon */}
-        <div className="p-4 flex items-start">
-          <Activity className="w-4 h-4 text-muted-foreground" />
-        </div>
-      </div>
-
-      {/* Deployment settings */}
-      <div className="border-t border-foreground/10">
-        <button
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          className="flex items-center gap-2 px-5 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150 w-full text-left"
-        >
-          <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${settingsOpen ? "rotate-90" : ""}`} />
-          Deployment Settings
-          <span className="ml-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-500 font-mono text-[10px]">
-            4 Recommendations
-          </span>
-        </button>
-        {settingsOpen && (
-          <div className="px-5 pb-4 text-xs text-muted-foreground border-t border-foreground/10 pt-3">
-            Review deployment settings and apply recommendations to improve performance and security.
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-foreground/10 px-5 py-2.5 flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          To update your Production Deployment, push to the{" "}
-          <code className="font-mono bg-foreground/5 px-1">main</code> branch.
-        </p>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150">
-            <BarChart2 className="w-3.5 h-3.5" />
-            Deployments
-          </button>
-          <button className="text-muted-foreground hover:text-foreground transition-colors duration-150">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProductionChecklist() {
-  const done = checklistItems.filter((i) => i.done).length;
-  return (
-    <StatCard label="Production Checklist" timeRange={`${done}/${checklistItems.length}`} href="#">
-      <div className="flex flex-col gap-0.5">
-        {checklistItems.map((item) => (
-          <div
-            key={item.label}
-            className={`flex items-center gap-2 px-2 py-1.5 text-xs transition-colors duration-150 ${
-              item.done ? "bg-blue-500/8 text-foreground" : "text-muted-foreground hover:bg-foreground/5"
-            }`}
-          >
-            {item.done ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-            ) : (
-              <Circle className="w-3.5 h-3.5 shrink-0" />
-            )}
-            <span className={item.done ? "text-blue-500" : ""}>{item.label}</span>
-            {item.done && <CheckCircle2 className="w-3 h-3 text-blue-500 ml-auto" />}
-          </div>
-        ))}
-      </div>
-    </StatCard>
-  );
-}
-
-function ObservabilityCard() {
-  return (
-    <StatCard label="Observability" timeRange="6h" href="#">
-      <div className="flex flex-col gap-3">
-        <div className="border-b border-foreground/10 pb-3">
-          <p className="text-xs text-muted-foreground mb-1">Edge Requests</p>
-          <p className="text-2xl font-display">0</p>
-        </div>
-        <div className="border-b border-foreground/10 pb-3">
-          <p className="text-xs text-muted-foreground mb-1">Function Invocations</p>
-          <p className="text-2xl font-display">0</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Error Rate</p>
-          <p className="text-2xl font-display">0%</p>
-        </div>
-      </div>
-    </StatCard>
-  );
-}
-
-function AnalyticsCard() {
-  return (
-    <StatCard label="Analytics" timeRange="1w" href="#">
-      <div className="flex flex-col items-center justify-center py-6 gap-2">
-        <AlertCircle className="w-5 h-5 text-muted-foreground/40" />
-        <p className="text-xs text-muted-foreground">No data</p>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span className="w-1.5 h-1.5 rounded-full bg-foreground/20" />
-          0 online
-        </div>
-      </div>
-    </StatCard>
-  );
-}
-
-function ActiveBranches() {
-  const [search, setSearch] = useState("");
-  const filtered = branches.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="mt-8">
-      <h2 className="text-base font-medium mb-4">Active Branches</h2>
-      <div className="border border-foreground/10">
-        {/* Search + filter */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-foreground/10">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full h-7 pl-8 text-xs bg-transparent border-none outline-none placeholder:text-muted-foreground/50 font-sans"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-            </div>
-            <span className="text-xs text-muted-foreground font-mono">Status 5/6</span>
-            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-          </div>
-        </div>
-
-        {/* Branch rows */}
-        {filtered.map((branch) => (
-          <div
-            key={branch.name}
-            className="flex items-center gap-4 px-4 py-3 border-b border-foreground/10 last:border-b-0 hover:bg-foreground/[0.02] transition-colors duration-150"
-          >
-            <GitBranch className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span className="text-sm font-mono flex-1 truncate">{branch.name}</span>
-            <div className="flex items-center gap-4 shrink-0">
-              <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150">
-                <Eye className="w-3 h-3" />
-                Preview
-              </button>
-              <div className="flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full ${branch.previewColor}`} />
-                <span className="text-xs font-mono text-muted-foreground">{branch.preview}</span>
-              </div>
-              <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150">
-                <Github className="w-3 h-3" />
-                Source
-              </button>
-              <div className="flex items-center gap-1">
-                <span className={`w-2 h-2 rounded-full ${branch.authorColor}`} />
-                <span className="text-xs text-muted-foreground">{branch.author}</span>
-              </div>
-              <span className="text-xs text-muted-foreground font-mono">{branch.time}</span>
-              <button className="text-muted-foreground hover:text-foreground transition-colors duration-150">
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Page ───────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const [data, setData] = useState<ProjectData | null>(null);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  async function load() {
+    setLoading(true);
+    const [proj, cred] = await Promise.all([
+      fetch("/api/vercel/project").then(r => r.json()),
+      fetch("/api/credits/balance").then(r => r.json()).catch(() => ({ balance: null })),
+    ]);
+    setData(proj);
+    setCredits(cred.balance);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const prod = data?.deployments?.find(d => d.target === "production") ?? data?.deployments?.[0];
+  const branches = data?.deployments?.filter(d => d.target !== "production") ?? [];
+  const filtered = branches.filter(b => !search || b.meta?.githubCommitRef?.includes(search) || b.url?.includes(search));
+
   return (
     <div className="flex flex-col min-h-full">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-2.5 border-b border-foreground/10 shrink-0">
         <div className="flex items-center gap-2">
-          {/* Project breadcrumb */}
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-full bg-foreground/80 flex items-center justify-center">
-              <span className="text-background text-[8px] font-mono">M</span>
-            </div>
-            <span className="text-xs font-mono text-muted-foreground">v0-optimus-the-ai-platform-to-bu</span>
-            <ChevronDown className="w-3 h-3 text-muted-foreground" />
+          <div className="w-4 h-4 rounded-full bg-foreground flex items-center justify-center">
+            <span className="text-background text-[8px] font-mono">M</span>
           </div>
+          <span className="text-xs font-mono text-muted-foreground truncate max-w-[200px]">
+            {loading ? "…" : data?.project?.name ?? "masidy"}
+          </span>
         </div>
         <span className="text-sm font-medium absolute left-1/2 -translate-x-1/2">Overview</span>
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
-            <span className="text-white text-[10px] font-mono font-medium">v0</span>
-          </div>
-          <button className="text-muted-foreground hover:text-foreground transition-colors duration-150">
-            <MoreHorizontal className="w-4 h-4" />
+        <div className="flex items-center gap-3">
+          {credits !== null && (
+            <Link href="/dashboard/billing" className="flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors duration-150">
+              <Zap className="w-3 h-3 text-blue-500" />
+              {credits} credits
+            </Link>
+          )}
+          <button onClick={load} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 px-6 py-6 max-w-[1200px] w-full mx-auto">
-        {/* Production deployment */}
-        <ProductionDeployment />
 
-        {/* 3-col stats */}
-        <div className="grid grid-cols-3 gap-px bg-foreground/10 border border-foreground/10 mt-6">
-          <ProductionChecklist />
-          <ObservabilityCard />
-          <AnalyticsCard />
+        {/* Production Deployment */}
+        <div className="border border-foreground/10">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-foreground/10">
+            <span className="text-sm font-medium">Production Deployment</span>
+            <div className="flex items-center gap-2">
+              {prod && (
+                <>
+                  <a href={`https://${prod.url}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground border border-foreground/10 px-3 h-7 hover:border-foreground/25 hover:text-foreground transition-colors duration-150">
+                    <ExternalLink className="w-3 h-3" />Open in
+                  </a>
+                  {data?.project?.link?.repo && (
+                    <a href={`https://github.com/${data.project.link.repo}`} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground border border-foreground/10 px-3 h-7 hover:border-foreground/25 hover:text-foreground transition-colors duration-150">
+                      <Github className="w-3 h-3" />Repository
+                    </a>
+                  )}
+                  <a href={`https://${prod.url}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs bg-foreground text-background px-3 h-7 font-medium hover:bg-foreground/90 transition-colors duration-150">
+                    Visit
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="p-5 flex flex-col gap-3">
+              <SkeletonBlock h="h-4" w="w-64" />
+              <SkeletonBlock h="h-4" w="w-48" />
+              <SkeletonBlock h="h-4" w="w-32" />
+            </div>
+          ) : prod ? (
+            <div className="grid grid-cols-[260px_1fr_auto]">
+              {/* Preview */}
+              <div className="border-r border-foreground/10 bg-foreground/[0.02] flex items-center justify-center min-h-[160px]">
+                <div className="w-full h-full p-4 flex flex-col gap-1.5 opacity-25">
+                  {[95, 70, 85, 60, 80, 65].map((w, i) => (
+                    <div key={i} className="h-2 bg-foreground/30 rounded-sm" style={{ width: `${w}%` }} />
+                  ))}
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="p-5 flex flex-col gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Deployment</p>
+                  <a href={`https://${prod.url}`} target="_blank" rel="noopener noreferrer"
+                    className="text-sm font-mono text-blue-500 hover:underline">{prod.url}</a>
+                </div>
+                {data?.domains && data.domains.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                      <Globe className="w-3 h-3" />Domains
+                    </div>
+                    {data.domains.slice(0, 2).map(d => (
+                      <a key={d.name} href={`https://${d.name}`} target="_blank" rel="noopener noreferrer"
+                        className="text-sm font-mono text-blue-500 hover:underline flex items-center gap-1 mb-0.5">
+                        {d.name}<ExternalLink className="w-3 h-3" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Status</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${deploymentStatusColor(prod.state)}`} />
+                      <span className="text-sm font-medium capitalize">{prod.state?.toLowerCase()}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Created</p>
+                    <p className="text-sm">{timeAgo(prod.created)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Source</p>
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <GitBranch className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>{prod.meta?.githubCommitRef ?? "main"}</span>
+                  </div>
+                  {prod.meta?.githubCommitSha && (
+                    <div className="flex items-center gap-1.5 text-sm mt-1">
+                      <GitCommit className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="font-mono text-xs text-muted-foreground">{prod.meta.githubCommitSha.slice(0, 7)}</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">{prod.meta.githubCommitMessage}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="p-4"><Activity className="w-4 h-4 text-muted-foreground" /></div>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-sm text-muted-foreground">No production deployment yet</div>
+          )}
+
+          {/* Settings */}
+          <div className="border-t border-foreground/10">
+            <button onClick={() => setSettingsOpen(!settingsOpen)}
+              className="flex items-center gap-2 px-5 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150 w-full text-left">
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${settingsOpen ? "rotate-90" : ""}`} />
+              Deployment Settings
+            </button>
+            {settingsOpen && (
+              <div className="px-5 pb-4 border-t border-foreground/10 pt-3 grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                <div><span className="font-medium text-foreground">Framework:</span> {data?.project?.framework ?? "Next.js"}</div>
+                <div><span className="font-medium text-foreground">Region:</span> iad1 (Washington D.C.)</div>
+                <div><span className="font-medium text-foreground">Node version:</span> 20.x</div>
+                <div><span className="font-medium text-foreground">Build command:</span> npm run build</div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-foreground/10 px-5 py-2.5 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Push to <code className="font-mono bg-foreground/5 px-1">main</code> to update Production.
+            </p>
+            <Link href="/dashboard/deployments"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150">
+              <BarChart2 className="w-3.5 h-3.5" />Deployments
+            </Link>
+          </div>
         </div>
 
-        {/* Active branches */}
-        <ActiveBranches />
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-px bg-foreground/10 border border-foreground/10 mt-6">
+          {/* Checklist */}
+          <div className="bg-background p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Production Checklist</span>
+              <span className="text-xs font-mono text-muted-foreground">
+                {data?.domains?.some(d => d.verified) ? "3" : "2"}/5
+              </span>
+            </div>
+            {[
+              { label: "Connect Git Repository", done: !!data?.project?.link },
+              { label: "Add Custom Domain", done: data?.domains?.some(d => d.verified) ?? false },
+              { label: "Production Deployment", done: !!prod && prod.state === "READY" },
+              { label: "Enable Web Analytics", done: false },
+              { label: "Enable Speed Insights", done: false },
+            ].map(item => (
+              <div key={item.label} className={`flex items-center gap-2 px-2 py-1.5 text-xs ${item.done ? "bg-blue-500/8 text-blue-500" : "text-muted-foreground"}`}>
+                {item.done ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <Circle className="w-3.5 h-3.5 shrink-0" />}
+                {item.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Observability */}
+          <div className="bg-background p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Observability</span>
+              <Link href="/dashboard/logs" className="text-xs text-muted-foreground hover:text-foreground">View logs →</Link>
+            </div>
+            <div className="flex flex-col gap-3">
+              {[
+                { label: "Deployments", value: data?.deployments?.length ?? 0 },
+                { label: "Production", value: data?.deployments?.filter(d => d.target === "production").length ?? 0 },
+                { label: "Ready", value: data?.deployments?.filter(d => d.state === "READY").length ?? 0 },
+              ].map(stat => (
+                <div key={stat.label} className="border-b border-foreground/10 pb-3 last:border-0 last:pb-0">
+                  <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
+                  <p className="text-2xl font-display">{loading ? "—" : stat.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Credits */}
+          <div className="bg-background p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium">Credits</span>
+              <Link href="/dashboard/billing" className="text-xs text-muted-foreground hover:text-foreground">Buy more →</Link>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div className="border-b border-foreground/10 pb-3">
+                <p className="text-xs text-muted-foreground mb-1">Balance</p>
+                <p className="text-2xl font-display">{credits ?? "—"}</p>
+              </div>
+              <div className="border-b border-foreground/10 pb-3">
+                <p className="text-xs text-muted-foreground mb-1">Lite message</p>
+                <p className="text-sm font-mono">0.5 credits</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Standard message</p>
+                <p className="text-sm font-mono">2 credits</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Branches */}
+        <div className="mt-8">
+          <h2 className="text-base font-medium mb-4">Active Branches</h2>
+          <div className="border border-foreground/10">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-foreground/10">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search branches…"
+                  className="w-full h-7 pl-8 text-xs bg-transparent border-none outline-none placeholder:text-muted-foreground/50" />
+              </div>
+              <span className="text-xs text-muted-foreground font-mono">{filtered.length} branches</span>
+            </div>
+            {loading ? (
+              <div className="p-4 flex flex-col gap-2">{[...Array(3)].map((_, i) => <SkeletonBlock key={i} h="h-10" />)}</div>
+            ) : filtered.length === 0 ? (
+              <div className="px-4 py-6 text-center text-sm text-muted-foreground">No active branches</div>
+            ) : filtered.map((b, i) => (
+              <div key={b.uid} className={`flex items-center gap-4 px-4 py-3 hover:bg-foreground/[0.02] transition-colors duration-150 ${i < filtered.length - 1 ? "border-b border-foreground/10" : ""}`}>
+                <GitBranch className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-sm font-mono flex-1 truncate">{b.meta?.githubCommitRef ?? b.url}</span>
+                <div className="flex items-center gap-4 shrink-0">
+                  <a href={`https://${b.url}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150">
+                    <Eye className="w-3 h-3" />Preview
+                  </a>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${deploymentStatusColor(b.state)}`} />
+                    <span className="text-xs font-mono text-muted-foreground capitalize">{b.state?.toLowerCase()}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground font-mono">{timeAgo(b.created)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
