@@ -41,15 +41,15 @@ const VIEWPORTS: { key: Viewport; icon: React.ReactNode; w: string }[] = [
 ];
 
 const MODELS = [
-  { id: "standard", label: "Masidy Auto",     icon: "M", desc: "" },
-  { id: "lite",     label: "Masidy Mini",     icon: "M", desc: "" },
-  { id: "standard", label: "Masidy Standard", icon: "M", desc: "" },
-  { id: "opus",     label: "Masidy Max",      icon: "M", desc: "" },
+  { id: "standard", label: "Masidy Auto",     icon: "M" },
+  { id: "lite",     label: "Masidy Mini",     icon: "M" },
+  { id: "standard", label: "Masidy Standard", icon: "M" },
+  { id: "opus",     label: "Masidy Max",      icon: "M" },
 ];
 const MORE_MODELS = [
   { id: "opus",     label: "Masidy Pro",      icon: "M" },
-  { id: "opus",     label: "Opus 4.7",        icon: "✳" },
-  { id: "lite",     label: "Opus 4.7 Fast",   icon: "✳" },
+  { id: "opus",     label: "Masidy Ultra",    icon: "M" },
+  { id: "lite",     label: "Masidy Fast",     icon: "M" },
 ];
 
 // ── Upgrade Modal ──────────────────────────────────────────────────────────

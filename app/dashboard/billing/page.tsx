@@ -117,8 +117,8 @@ export default function BillingPage() {
             {[
               { action: "Masidy Lite message",     cost: "0.5 credits" },
               { action: "Masidy Standard message", cost: "2 credits"   },
-              { action: "Masidy Opus message",     cost: "5 credits"   },
-              { action: "Deploy to Vercel",        cost: "1 credit"    },
+              { action: "Masidy Max message",      cost: "5 credits"   },
+              { action: "Deploy project",          cost: "1 credit"    },
               { action: "Custom domain",           cost: "2 credits"   },
               { action: "Storage (per GB/mo)",     cost: "3 credits"   },
             ].map((row, i, arr) => (

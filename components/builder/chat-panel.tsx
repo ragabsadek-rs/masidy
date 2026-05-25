@@ -24,9 +24,9 @@ export interface Message {
 type AgentModel = "lite" | "standard" | "opus";
 
 const AGENTS: Record<AgentModel, { label: string; desc: string; color: string }> = {
-  lite:     { label: "Masidy Lite",     desc: "Fast · claude-haiku",   color: "text-green-500" },
-  standard: { label: "Masidy Standard", desc: "Balanced · claude-sonnet", color: "text-blue-500" },
-  opus:     { label: "Masidy",          desc: "Powerful · claude-opus",  color: "text-purple-500" },
+  lite:     { label: "Masidy Lite",     desc: "Fast · cost-efficient",  color: "text-green-500" },
+  standard: { label: "Masidy Standard", desc: "Balanced · powerful",    color: "text-blue-500" },
+  opus:     { label: "Masidy Max",      desc: "Most capable · autonomous", color: "text-purple-500" },
 };
 
 function MessageBubble({ msg }: { msg: Message }) {
