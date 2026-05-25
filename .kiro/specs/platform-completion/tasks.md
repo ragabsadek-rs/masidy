@@ -89,61 +89,61 @@ Complete the Masidy platform by implementing all missing functionality across th
   - Add a "Purge Cache" button in the CDN dashboard page
   - Show toast on success/failure
 
-- [ ] 18. Agent sessions page — show real chat history from Supabase
+- [x] 18. Agent sessions page — show real chat history from Supabase
   - Create `app/dashboard/agent/sessions/page.tsx`
   - Fetch chat history from Supabase messages/sessions table
   - Render sessions list with timestamps and message previews
   - Add loading skeleton
 
-- [~] 19. Agent tools page — show available MCP tools
+- [x] 19. Agent tools page — show available MCP tools
   - Create `app/dashboard/agent/tools/page.tsx`
   - Display a list of available MCP tools with name, description, and status
   - Add loading skeleton
 
-- [~] 20. AI Gateway routes — show real credit usage per model
+- [x] 20. AI Gateway routes — show real credit usage per model
   - Create `app/dashboard/ai-gateway/routes/page.tsx`
   - Query `credit_transactions` table grouped by model to show usage per route
   - Render as a data table with `font-mono` values and loading skeleton
 
-- [~] 21. AI Gateway usage — real charts from credit_transactions table
+- [x] 21. AI Gateway usage — real charts from credit_transactions table
   - Create `app/dashboard/ai-gateway/usage/page.tsx`
   - Query `credit_transactions` table for time-series data
   - Render usage charts using existing chart components and add loading skeleton
 
-- [~] 22. Fix all sidebar nav links that point to non-existent sub-pages
+- [x] 22. Fix all sidebar nav links that point to non-existent sub-pages
   - Audit all sidebar nav links in `components/dashboard/app-sidebar.tsx` for broken routes
   - Create stub pages for: `observability/runtime`, `observability/build`, `firewall/rules`
   - Ensure all nav links resolve to existing pages
 
-- [~] 23. Dashboard/builder page — redirect to /builder
+- [x] 23. Dashboard/builder page — redirect to /builder
   - Update `app/dashboard/builder/page.tsx` to redirect to `/builder`
   - Depends on: 22
 
-- [~] 24. Add loading skeletons to all dashboard pages
+- [x] 24. Add loading skeletons to all dashboard pages
   - Add `animate-pulse bg-foreground/10` skeleton blocks to every dashboard page that loads async data
   - Ensure skeletons match the layout of the real content (same grid/table structure)
   - Depends on: 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
 
-- [~] 25. Add toast notifications for all actions
+- [x] 25. Add toast notifications for all actions
   - Ensure every user action (domain added, env var saved, rule created, etc.) triggers a toast via the existing shadcn toast/sonner setup
   - Use consistent success/error messaging patterns across all dashboard pages
   - Depends on: 13, 14, 15, 16, 17
 
-- [~] 26. Add confirmation dialogs for destructive actions
+- [x] 26. Add confirmation dialogs for destructive actions
   - Add shadcn AlertDialog confirmation before: delete domain, delete env var, delete firewall rule, delete feature flag, delete store
   - Dialog must follow design system: `bg-background border border-foreground/10`, no rounded corners on container
   - Depends on: 13, 14, 16
 
-- [~] 27. Fix all "Create team" / team functionality stubs
+- [x] 27. Fix all "Create team" / team functionality stubs
   - Locate all "Create team" stubs in the sidebar and dashboard
   - Either implement basic team creation (Supabase `teams` table) or replace stubs with a "Coming soon" state that does not break navigation
 
-- [~] 28. Add search functionality to sidebar Find input
+- [x] 28. Add search functionality to sidebar Find input
   - Wire the sidebar "Find" input to filter nav items by label in real time
   - Clear filter when input is emptied
   - Depends on: 7
 
-- [~] 29. Wire notification bell in sidebar
+- [x] 29. Wire notification bell in sidebar
   - Add a notifications dropdown/popover to the sidebar bell icon
   - Fetch recent notifications from Supabase or show empty state if no table exists
   - Mark notifications as read on open
