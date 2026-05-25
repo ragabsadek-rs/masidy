@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense, useRef } from "react";
+import { useState, useCallback, Suspense, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { FileTree, FileNode } from "@/components/builder/file-tree";
@@ -112,9 +112,10 @@ function UpgradeModal({ onClose }: { onClose: () => void }) {
 }
 
 // ── Chat Panel ─────────────────────────────────────────────────────────────
-function ChatPanel({ messages, isLoading, onSend, onReset }: {
+function ChatPanel({ messages, isLoading, onSend, onReset, credits }: {
   messages: Message[]; isLoading: boolean;
   onSend: (c: string, m: AgentModel) => void; onReset: () => void;
+  credits: number | null;
 }) {
   const [input, setInput] = useState("");
   const [model, setModel] = useState<AgentModel>("standard");
@@ -314,14 +315,25 @@ function ChatPanel({ messages, isLoading, onSend, onReset }: {
             </div>
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground/60 text-center mt-1.5 pb-1">You are out of free credits. <button onClick={() => setShowUpgrade(true)} className="underline hover:text-foreground">Upgrade Plan</button></p>
+        <p className="text-[10px] text-muted-foreground/60 text-center mt-1.5 pb-1">
+          {credits !== null && credits <= 0
+            ? <>Out of credits. <button onClick={() => setShowUpgrade(true)} className="underline hover:text-foreground">Buy more</button></>
+            : credits !== null
+            ? <span className="font-mono">{credits} credits remaining</span>
+            : null
+          }
+        </p>
       </div>
     </div>
   );
 }
 
 // ── Top bar ────────────────────────────────────────────────────────────────
-function TopBar({ previewUrl, branch }: { previewUrl: string | null; branch: string }) {
+function TopBar({ previewUrl, branch, credits, onDeploy, isDeploying, files }: {
+  previewUrl: string | null; branch: string;
+  credits: number | null; onDeploy: () => void;
+  isDeploying: boolean; files: FileNode[];
+}) {
   return (
     <div className="flex items-center h-10 border-b border-foreground/10 bg-background shrink-0 px-3 gap-2">
       <Link href="/dashboard" className="flex items-center gap-1 shrink-0">
@@ -346,6 +358,13 @@ function TopBar({ previewUrl, branch }: { previewUrl: string | null; branch: str
       </div>
 
       <div className="flex items-center gap-1.5">
+        {/* Credits display */}
+        {credits !== null && (
+          <Link href="/dashboard/billing" className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground hover:text-foreground transition-colors duration-150">
+            <Zap className="w-3 h-3 text-blue-500" />{credits}
+          </Link>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors duration-150">
@@ -358,61 +377,27 @@ function TopBar({ previewUrl, branch }: { previewUrl: string | null; branch: str
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <button className="flex items-center gap-1.5 text-xs text-muted-foreground border border-foreground/10 px-2.5 h-7 hover:border-foreground/25 hover:text-foreground transition-colors duration-150">
-          <Share2 className="w-3 h-3" />Site
-        </button>
+        {/* Deploy button */}
+        {files.length > 0 && (
+          <button
+            onClick={onDeploy}
+            disabled={isDeploying}
+            className="flex items-center gap-1.5 text-xs bg-foreground text-background px-3 h-7 font-medium hover:bg-foreground/90 transition-colors duration-150 disabled:opacity-50"
+          >
+            {isDeploying ? (
+              <><RefreshCw className="w-3 h-3 animate-spin" />Deploying…</>
+            ) : (
+              <><Zap className="w-3 h-3" />Deploy</>
+            )}
+          </button>
+        )}
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center text-xs bg-foreground text-background h-7 hover:bg-foreground/90 transition-colors duration-150">
-              <span className="px-3 font-medium">View Branch</span>
-              <span className="border-l border-background/20 px-2 h-full flex items-center"><ChevronDown className="w-3 h-3" /></span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem className="text-xs"><GitPullRequest className="w-3.5 h-3.5 mr-2" />View PR</DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><GitMerge className="w-3.5 h-3.5 mr-2" />Merge PR</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs"><Globe className="w-3.5 h-3.5 mr-2" />Preview Site<span className="ml-auto w-1.5 h-1.5 rounded-full bg-green-500" /></DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><Globe className="w-3.5 h-3.5 mr-2" />Production Site</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center ml-1 hover:opacity-90 transition-opacity">
-              <span className="text-white text-[10px] font-mono font-bold">N</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-3 py-2 border-b border-foreground/10">
-              <p className="text-xs font-medium">ragabsadek91-9468</p>
-              <p className="text-[10px] text-muted-foreground">ragabsadek91@gmail.com</p>
-            </div>
-            <DropdownMenuItem className="text-xs"><User className="w-3.5 h-3.5 mr-2" />Profile</DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><Settings className="w-3.5 h-3.5 mr-2" />Account Settings</DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><DollarSign className="w-3.5 h-3.5 mr-2" />Pricing<ExternalLink className="w-3 h-3 ml-auto" /></DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><BookOpen className="w-3.5 h-3.5 mr-2" />Documentation<ExternalLink className="w-3 h-3 ml-auto" /></DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><Users className="w-3.5 h-3.5 mr-2" />Community Forum<ExternalLink className="w-3 h-3 ml-auto" /></DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><MessageSquare className="w-3.5 h-3.5 mr-2" />Feedback</DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><Gift className="w-3.5 h-3.5 mr-2" />Refer</DropdownMenuItem>
-            <DropdownMenuItem className="text-xs"><Coins className="w-3.5 h-3.5 mr-2" />Credits<span className="ml-auto font-mono text-[10px]">0.00</span></DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <div className="px-3 py-1.5">
-              <p className="text-[10px] text-muted-foreground mb-1.5">Preferences</p>
-              <div className="flex items-center justify-between">
-                <span className="text-xs">Theme</span>
-                <div className="flex items-center gap-1">
-                  {[<Sun key="s" className="w-3 h-3" />, <Moon key="m" className="w-3 h-3" />, <Laptop key="l" className="w-3 h-3" />].map((icon, i) => (
-                    <button key={i} className="w-5 h-5 flex items-center justify-center hover:bg-foreground/10 rounded text-muted-foreground hover:text-foreground">{icon}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs text-destructive"><LogOut className="w-3.5 h-3.5 mr-2" />Sign Out</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {previewUrl && (
+          <a href={previewUrl} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs border border-foreground/15 text-muted-foreground px-2.5 h-7 hover:border-foreground/30 hover:text-foreground transition-colors duration-150">
+            <Globe className="w-3 h-3" />Visit
+          </a>
+        )}
       </div>
     </div>
   );
@@ -490,13 +475,11 @@ function RightToolbar({ tab, onTab, chatCollapsed, onToggleChat, viewport, onVie
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem className="text-xs"><Globe className="w-3.5 h-3.5 mr-2" />Vercel Project</DropdownMenuItem>
-          <DropdownMenuItem className="text-xs"><Layers className="w-3.5 h-3.5 mr-2" />Integrations</DropdownMenuItem>
-          <DropdownMenuItem className="text-xs"><KeyRound className="w-3.5 h-3.5 mr-2" />Environment Variables</DropdownMenuItem>
-          <DropdownMenuItem className="text-xs"><GitBranch className="w-3.5 h-3.5 mr-2" />GitHub</DropdownMenuItem>
-          <DropdownMenuItem className="text-xs"><Layers className="w-3.5 h-3.5 mr-2" />Template</DropdownMenuItem>
-          <DropdownMenuItem className="text-xs"><Link2 className="w-3.5 h-3.5 mr-2" />Domains</DropdownMenuItem>
-          <DropdownMenuItem className="text-xs"><BarChart2 className="w-3.5 h-3.5 mr-2" />Analytics</DropdownMenuItem>
+          <DropdownMenuItem className="text-xs" asChild><Link href="/dashboard"><Globe className="w-3.5 h-3.5 mr-2" />Dashboard</Link></DropdownMenuItem>
+          <DropdownMenuItem className="text-xs" asChild><Link href="/dashboard/deployments"><Layers className="w-3.5 h-3.5 mr-2" />Deployments</Link></DropdownMenuItem>
+          <DropdownMenuItem className="text-xs" asChild><Link href="/dashboard/env"><KeyRound className="w-3.5 h-3.5 mr-2" />Environment Variables</Link></DropdownMenuItem>
+          <DropdownMenuItem className="text-xs" asChild><Link href="/dashboard/domains"><Link2 className="w-3.5 h-3.5 mr-2" />Domains</Link></DropdownMenuItem>
+          <DropdownMenuItem className="text-xs" asChild><Link href="/dashboard/analytics"><BarChart2 className="w-3.5 h-3.5 mr-2" />Analytics</Link></DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -504,7 +487,10 @@ function RightToolbar({ tab, onTab, chatCollapsed, onToggleChat, viewport, onVie
 }
 
 // ── Terminal ───────────────────────────────────────────────────────────────
-function TerminalPanel({ onClose }: { onClose: () => void }) {
+function TerminalPanel({ onClose, logs }: { onClose: () => void; logs: string[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
+
   return (
     <div className="border-t border-foreground/10 bg-background flex flex-col shrink-0" style={{ height: 200 }}>
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-foreground/10 shrink-0">
@@ -516,16 +502,24 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex items-center gap-1">
           <input placeholder="Filter…" className="text-xs bg-foreground/[0.03] border border-foreground/10 px-2 h-5 outline-none w-20 font-mono" />
-          <button className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground"><Copy className="w-3 h-3" /></button>
-          <button className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground"><Trash2 className="w-3 h-3" /></button>
-          <button onClick={onClose} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
+          <button className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground"
+            onClick={() => navigator.clipboard.writeText(logs.join("\n"))}>
+            <Copy className="w-3 h-3" />
+          </button>
+          <button onClick={onClose} className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground">
+            <X className="w-3 h-3" />
+          </button>
         </div>
       </div>
       <div className="flex-1 overflow-auto px-3 py-2 font-mono text-xs">
-        <div className="flex gap-3 leading-5 text-muted-foreground/60"><span>05:52:36.188Z</span><span>[SERVER]</span><span className="text-foreground/70">▲ Next.js 16.0.10</span></div>
-        <div className="flex gap-3 leading-5"><span className="text-muted-foreground/60">05:52:38.547Z</span><span className="text-muted-foreground/60">[SERVER]</span><span className="text-green-600">✓ Ready in 472ms</span></div>
-        <div className="flex gap-3 leading-5 text-muted-foreground/60"><span>05:52:41.921Z</span><span>[SERVER]</span><span className="text-foreground/70">GET / 200 in 2.6s</span></div>
-        <div className="text-muted-foreground/40 mt-1">Reconnected to preview</div>
+        {logs.length === 0 ? (
+          <span className="text-muted-foreground/40">No logs yet</span>
+        ) : logs.map((line, i) => (
+          <div key={i} className={`leading-5 ${line.includes("[ERROR]") ? "text-red-500" : line.includes("✓") ? "text-green-600" : "text-foreground/70"}`}>
+            {line}
+          </div>
+        ))}
+        <div ref={bottomRef} />
       </div>
     </div>
   );
@@ -557,11 +551,30 @@ function BuilderContent() {
   const [activeFile, setActiveFile] = useState<FileNode | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(false);
   const [rightTab, setRightTab] = useState<RightTab>("preview");
   const [viewport, setViewport] = useState<Viewport>("desktop");
   const [showTerminal, setShowTerminal] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+
+  // Load credits
+  useEffect(() => {
+    fetch("/api/credits/balance").then(r => r.json()).then(d => setCredits(d.balance ?? null)).catch(() => {});
+  }, []);
+
+  // Auto-send prompt from URL
+  const initialSent = useRef(false);
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    const model = (searchParams.get("model") as AgentModel) ?? "standard";
+    if (prompt && !initialSent.current) {
+      initialSent.current = true;
+      handleSend(prompt, model);
+    }
+  }, []);
 
   const handleSend = useCallback(async (content: string, model: AgentModel) => {
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content, timestamp: new Date() };
@@ -574,11 +587,26 @@ function BuilderContent() {
         body: JSON.stringify({ messages: history, model }),
       });
       const data = await res.json();
+
+      if (res.status === 402) {
+        setMessages((prev) => [...prev, {
+          id: crypto.randomUUID(), role: "assistant",
+          content: `You need more credits to continue. You have ${data.remaining ?? 0} credits remaining.`,
+          timestamp: new Date(),
+        }]);
+        setIsLoading(false);
+        return;
+      }
+
       const assistantMsg: Message = {
         id: crypto.randomUUID(), role: "assistant",
         content: data.explanation ?? "Done.", files: data.files ?? [], timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+
+      // Refresh credits
+      fetch("/api/credits/balance").then(r => r.json()).then(d => setCredits(d.balance ?? null)).catch(() => {});
+
       if (data.files?.length > 0) {
         setFiles((prev) => {
           const updated = [...prev];
@@ -595,10 +623,43 @@ function BuilderContent() {
     } catch {
       setMessages((prev) => [...prev, {
         id: crypto.randomUUID(), role: "assistant",
-        content: "Something went wrong. Check your ANTHROPIC_API_KEY in .env.local.", timestamp: new Date(),
+        content: "Something went wrong. Please try again or contact support if the issue persists.",
+        timestamp: new Date(),
       }]);
     } finally { setIsLoading(false); }
   }, [messages]);
+
+  async function handleDeploy() {
+    if (!files.length) return;
+    setIsDeploying(true);
+    setShowTerminal(true);
+    const ts = () => new Date().toISOString().split("T")[1].slice(0, 12);
+    setTerminalLogs([`${ts()} [INFO] Starting deployment…`]);
+    try {
+      const res = await fetch("/api/builder/deploy", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files, projectName: `masidy-${Date.now()}` }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        setPreviewUrl(data.url);
+        setRightTab("preview");
+        setTerminalLogs(prev => [...prev,
+          `${ts()} [INFO] ✓ Build complete`,
+          `${ts()} [INFO] ✓ Deployed: ${data.url}`,
+        ]);
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(), role: "assistant",
+          content: `✓ Deployed!\n\nLive URL: ${data.url}`,
+          timestamp: new Date(),
+        }]);
+      } else {
+        setTerminalLogs(prev => [...prev, `${ts()} [ERROR] Deploy failed: ${data.error ?? "Unknown error"}`]);
+      }
+    } catch {
+      setTerminalLogs(prev => [...prev, `${ts()} [ERROR] Deploy failed`]);
+    } finally { setIsDeploying(false); }
+  }
 
   function handleFileChange(path: string, content: string) {
     setFiles((prev) => prev.map((f) => f.path === path ? { ...f, content } : f));
@@ -609,7 +670,7 @@ function BuilderContent() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <TopBar previewUrl={previewUrl} branch="main" />
+      <TopBar previewUrl={previewUrl} branch="main" credits={credits} onDeploy={handleDeploy} isDeploying={isDeploying} files={files} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT: Chat — resizable */}
@@ -619,8 +680,8 @@ function BuilderContent() {
               <div className="h-full border-r border-foreground/10 overflow-hidden">
                 <ChatPanel
                   messages={messages} isLoading={isLoading}
-                  onSend={handleSend}
-                  onReset={() => { setMessages([]); setFiles([]); setActiveFile(null); setPreviewUrl(null); }}
+                  onSend={handleSend} credits={credits}
+                  onReset={() => { setMessages([]); setFiles([]); setActiveFile(null); setPreviewUrl(null); setTerminalLogs([]); }}
                 />
               </div>
             </ResizablePanel>
@@ -663,7 +724,7 @@ function BuilderContent() {
                     )}
                     {rightTab === "database" && <DatabaseTab />}
                   </div>
-                  {showTerminal && <TerminalPanel onClose={() => setShowTerminal(false)} />}
+                  {showTerminal && <TerminalPanel onClose={() => setShowTerminal(false)} logs={terminalLogs} />}
                 </div>
               </div>
             </ResizablePanel>
@@ -705,7 +766,7 @@ function BuilderContent() {
                 )}
                 {rightTab === "database" && <DatabaseTab />}
               </div>
-              {showTerminal && <TerminalPanel onClose={() => setShowTerminal(false)} />}
+              {showTerminal && <TerminalPanel onClose={() => setShowTerminal(false)} logs={terminalLogs} />}
             </div>
           </div>
         )}
@@ -730,3 +791,4 @@ export default function BuilderPage() {
     </Suspense>
   );
 }
+
