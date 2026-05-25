@@ -1,0 +1,84 @@
+import { createClient } from "@/lib/supabase/server";
+import { CREDIT_COSTS, type CreditAction } from "@/lib/stripe";
+
+export async function getCredits(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("credits")
+    .select("balance")
+    .eq("user_id", userId)
+    .single();
+  return data?.balance ?? 0;
+}
+
+export async function deductCredits(
+  userId: string,
+  action: CreditAction,
+  description: string
+): Promise<{ success: boolean; remaining: number; error?: string }> {
+  const supabase = await createClient();
+  const cost = CREDIT_COSTS[action];
+
+  // Get current balance
+  const { data: creditRow } = await supabase
+    .from("credits")
+    .select("balance")
+    .eq("user_id", userId)
+    .single();
+
+  const balance = creditRow?.balance ?? 0;
+
+  if (balance < cost) {
+    return { success: false, remaining: balance, error: "Insufficient credits" };
+  }
+
+  const newBalance = balance - cost;
+
+  // Update balance
+  await supabase
+    .from("credits")
+    .update({ balance: newBalance, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
+  // Log transaction
+  await supabase.from("credit_transactions").insert({
+    user_id: userId,
+    action,
+    amount: -cost,
+    description,
+    balance_after: newBalance,
+  });
+
+  return { success: true, remaining: newBalance };
+}
+
+export async function addCredits(
+  userId: string,
+  amount: number,
+  description: string
+): Promise<number> {
+  const supabase = await createClient();
+
+  const { data: creditRow } = await supabase
+    .from("credits")
+    .select("balance")
+    .eq("user_id", userId)
+    .single();
+
+  const current = creditRow?.balance ?? 0;
+  const newBalance = current + amount;
+
+  await supabase
+    .from("credits")
+    .upsert({ user_id: userId, balance: newBalance, updated_at: new Date().toISOString() });
+
+  await supabase.from("credit_transactions").insert({
+    user_id: userId,
+    action: "purchase",
+    amount,
+    description,
+    balance_after: newBalance,
+  });
+
+  return newBalance;
+}

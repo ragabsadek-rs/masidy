@@ -21,6 +21,7 @@ import {
   Bell,
   MoreHorizontal,
   ChevronsUpDown,
+  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -120,6 +121,7 @@ const navItems = [
       { label: "Usage", href: "/dashboard/ai-gateway/usage" },
     ],
   },
+  { label: "Billing & Credits", icon: CreditCard, href: "/dashboard/billing" },
 ];
 
 function NavItem({ item }: { item: typeof navItems[0] }) {

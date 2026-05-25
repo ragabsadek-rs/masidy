@@ -1,40 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { deductCredits } from "@/lib/credits";
+import type { CreditAction } from "@/lib/stripe";
 
-// Agent IDs from your Claude Cloud setup
-const AGENTS = {
-  standard: "agent_01JW3Y9RxoFMasidyStandard", // claude-sonnet-4-6
-  lite:     "agent_01FrpNZiTYN4RA2phxP8TuXY",  // claude-haiku-4-5  (fast)
-  opus:     "agent_01JW3YkJumNvMasidyOpus",     // claude-opus-4-7   (powerful)
-} as const;
+const MODEL_MAP = {
+  lite:     { model: "claude-haiku-4-5",  action: "message_lite"     as CreditAction },
+  standard: { model: "claude-sonnet-4-5", action: "message_standard" as CreditAction },
+  opus:     { model: "claude-opus-4-5",   action: "message_opus"     as CreditAction },
+};
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, model = "standard", files } = await req.json();
+    const { messages, model = "standard" } = await req.json();
+    const tier = MODEL_MAP[model as keyof typeof MODEL_MAP] ?? MODEL_MAP.standard;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
+    if (!apiKey) return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
+
+    // Auth check + credit deduction (skip if no Supabase configured)
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const result = await deductCredits(user.id, tier.action, `Masidy ${model} message`);
+        if (!result.success) {
+          return NextResponse.json(
+            { error: "Insufficient credits", remaining: result.remaining },
+            { status: 402 }
+          );
+        }
+      }
     }
 
-    // Build system prompt for code generation
-    const systemPrompt = `You are Masidy, an expert AI software engineer. 
-When asked to build or modify code:
-1. Always respond with complete, working code files
-2. Format your response as JSON with this structure:
+    const systemPrompt = `You are Masidy, an expert AI software engineer.
+When asked to build or modify code, respond with JSON:
 {
-  "explanation": "brief explanation of what you did",
+  "explanation": "brief explanation",
   "files": [
-    { "path": "relative/file/path.tsx", "content": "full file content", "language": "typescript" }
+    { "path": "relative/path.tsx", "content": "full file content", "language": "typescript" }
   ],
   "preview_url": null
 }
-3. For React/Next.js apps, generate complete components with proper imports
-4. Use TypeScript, Tailwind CSS, and modern React patterns
-5. If only answering a question (no code needed), respond with:
-{
-  "explanation": "your answer",
-  "files": []
-}`;
+Use TypeScript, Tailwind CSS, and modern React patterns.
+For questions only: { "explanation": "your answer", "files": [] }`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -44,7 +53,7 @@ When asked to build or modify code:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: model === "opus" ? "claude-opus-4-5" : model === "lite" ? "claude-haiku-4-5" : "claude-sonnet-4-5",
+        model: tier.model,
         max_tokens: 8192,
         system: systemPrompt,
         messages: messages.map((m: { role: string; content: string }) => ({
@@ -62,16 +71,10 @@ When asked to build or modify code:
     const data = await response.json();
     const text = data.content?.[0]?.text ?? "";
 
-    // Try to parse structured JSON response
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return NextResponse.json(parsed);
-      }
-    } catch {
-      // Not JSON — return as plain explanation
-    }
+      if (jsonMatch) return NextResponse.json(JSON.parse(jsonMatch[0]));
+    } catch {}
 
     return NextResponse.json({ explanation: text, files: [] });
   } catch (err) {
