@@ -267,10 +267,11 @@ function ChatPanel({ messages, isLoading, onSend, onReset, credits }: {
               {/* Model picker */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-foreground/5 px-1.5 py-1 rounded transition-colors duration-150">
+                  <button className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground hover:text-foreground hover:bg-foreground/5 px-3 py-1 rounded transition-colors duration-150">
                     <div className="w-3.5 h-3.5 rounded-sm bg-foreground flex items-center justify-center shrink-0">
                       <span className="text-background text-[7px] font-bold">M</span>
                     </div>
+                    <span>{modelLabel}</span>
                     <ChevronDown className="w-3 h-3" />
                   </button>
                 </DropdownMenuTrigger>
@@ -568,10 +569,12 @@ function BuilderContent() {
   const initialSent = useRef(false);
   useEffect(() => {
     const prompt = searchParams.get("prompt");
-    const model = (searchParams.get("model") as AgentModel) ?? "standard";
+    const initialModel = (searchParams.get("model") as AgentModel) ?? "lite";
     if (prompt && !initialSent.current) {
       initialSent.current = true;
-      handleSend(prompt, model);
+      setModel(initialModel);
+      setModelLabel(MODELS.find((m) => m.id === initialModel)?.label ?? "Masidy Lite");
+      handleSend(prompt, initialModel);
     }
   }, []);
 
