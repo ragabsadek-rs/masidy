@@ -683,7 +683,15 @@ function BuilderContent() {
                 <ChatPanel
                   messages={messages} isLoading={isLoading}
                   onSend={handleSend} credits={credits}
-                  onReset={() => { setMessages([]); setFiles([]); setActiveFile(null); setPreviewUrl(null); setTerminalLogs([]); }}
+                  onReset={() => {
+                  setMessages([]);
+                  setFiles([]);
+                  setActiveFile(null);
+                  setPreviewUrl(null);
+                  setTerminalLogs([]);
+                  setModel("lite");
+                  setModelLabel("Masidy Lite");
+                }}
                 />
               </div>
             </ResizablePanel>

@@ -159,7 +159,11 @@ export function ChatPanel({ messages, isLoading, onSend, onReset }: ChatPanelPro
         <div className="flex items-center gap-2">
           {messages.length > 0 && (
             <button
-              onClick={onReset}
+              onClick={() => {
+                setModel("lite");
+                setShowModelPicker(false);
+                onReset();
+              }}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors duration-150"
               title="New chat"
             >
