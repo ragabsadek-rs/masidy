@@ -1,27 +1,58 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cpu, Plus } from "lucide-react";
+import Link from "next/link";
+import { Cpu, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
-interface Integration { id: string; slug: string; name?: string; }
+interface Integration { id: string; slug: string; name?: string; provider?: string; category?: string; description?: string; }
 
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  async function loadIntegrations() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/marketplace/installed");
+      const data = await res.json();
+      setIntegrations(Array.isArray(data) ? data : []);
+    } catch {
+      setIntegrations([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleUninstall(slug: string) {
+    setRemoving(slug);
+    try {
+      await fetch(`/api/marketplace/install?slug=${encodeURIComponent(slug)}`, {
+        method: "DELETE",
+      });
+      await loadIntegrations();
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   useEffect(() => {
-    fetch("/api/vercel/integrations")
-      .then(r => r.json())
-      .then(d => { setIntegrations(Array.isArray(d) ? d : []); setLoading(false); })
-      .catch(() => setLoading(false));
+    loadIntegrations();
   }, []);
 
   return (
     <div className="flex flex-col min-h-full">
       <div className="flex items-center justify-between px-6 py-3 border-b border-foreground/10 shrink-0">
-        <h1 className="text-sm font-medium">Integrations</h1>
+        <div>
+          <h1 className="text-sm font-medium">Integrations</h1>
+          <p className="text-xs text-muted-foreground">Manage installed integrations and connect new providers.</p>
+        </div>
+        <Link href="/marketplace" className="text-sm font-medium text-primary hover:text-primary/80">
+          Browse marketplace
+        </Link>
       </div>
       <div className="flex-1 px-6 py-6 max-w-3xl">
         {loading ? (
@@ -33,17 +64,43 @@ export default function IntegrationsPage() {
               <p className="text-sm font-medium mb-1">No integrations installed</p>
               <p className="text-xs text-muted-foreground max-w-xs">Connect tools like GitHub, Slack, Datadog, and more to extend your Masidy workspace.</p>
             </div>
+            <Button asChild>
+              <Link href="/marketplace">Browse marketplace</Link>
+            </Button>
           </div>
         ) : (
-          <div className="border border-foreground/10">
-            {integrations.map((item, i) => (
-              <div key={item.id} className={`flex items-center gap-4 px-4 py-4 hover:bg-foreground/[0.02] transition-colors duration-150 ${i < integrations.length - 1 ? "border-b border-foreground/10" : ""}`}>
-                <div className="w-8 h-8 border border-foreground/10 flex items-center justify-center shrink-0">
-                  <Cpu className="w-4 h-4 text-muted-foreground" />
+          <div className="border border-foreground/10 rounded-3xl overflow-hidden">
+            {integrations.map((item, index) => (
+              <div
+                key={item.id}
+                className={`flex flex-col gap-3 px-4 py-4 transition-colors duration-150 ${index < integrations.length - 1 ? "border-b border-foreground/10" : ""}`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{item.name ?? item.slug}</p>
+                    <p className="mt-1 text-xs text-muted-foreground truncate">{item.provider ?? item.slug}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUninstall(item.slug)}
+                      disabled={removing === item.slug}
+                    >
+                      {removing === item.slug ? "Removing..." : "Remove"}
+                    </Button>
+                    <Link
+                      href={`/dashboard/integrations/${item.slug}`}
+                      className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Details
+                    </Link>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{item.name ?? item.slug}</p>
-                  <p className="text-xs text-muted-foreground font-mono">{item.slug}</p>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  {item.category && <span className="rounded-full border border-foreground/10 bg-background px-2 py-1">{item.category}</span>}
+                  <span className="rounded-full border border-foreground/10 bg-background px-2 py-1">{item.status}</span>
                 </div>
               </div>
             ))}

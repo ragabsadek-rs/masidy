@@ -1,14 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { BuilderDeployRequestSchema } from "@/lib/validation";
+import { rateLimit, getRateLimitKey, getTimeUntilReset } from "@/lib/ratelimit";
 
 const TOKEN = process.env.VERCEL_ACCESS_TOKEN!;
 const TEAM  = process.env.VERCEL_TEAM_ID!;
 
-interface FileNode { path: string; content: string; language?: string; }
-
 export async function POST(req: NextRequest) {
   try {
-    const { files, projectName } = await req.json() as { files: FileNode[]; projectName?: string };
-    if (!files?.length) return NextResponse.json({ error: "No files" }, { status: 400 });
+    // Validate request
+    const body = await req.json();
+    const validation = BuilderDeployRequestSchema.safeParse(body);
+    if (!validation.success) {
+      console.error("[/api/builder/deploy] Validation failed:", validation.error);
+      return NextResponse.json(
+        { error: "Invalid request: " + validation.error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    const { files, projectName } = validation.data;
+
+    // Rate limiting + auth
+    let userId = "anonymous";
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        userId = user.id;
+      }
+
+      // Rate limit check (5 deployments per minute per user)
+      const rateLimitKey = getRateLimitKey(userId, "deploy");
+      if (!rateLimit(rateLimitKey, 5, 60 * 1000)) {
+        const resetIn = getTimeUntilReset(rateLimitKey);
+        console.warn(`[/api/builder/deploy] Rate limit exceeded for user ${userId}`);
+        return NextResponse.json(
+          { error: `Rate limited. Try again in ${Math.ceil(resetIn / 1000)}s` },
+          { status: 429, headers: { "Retry-After": String(Math.ceil(resetIn / 1000)) } }
+        );
+      }
+    }
 
     const name = (projectName ?? `masidy-${Date.now()}`).toLowerCase().replace(/[^a-z0-9-]/g, "-");
 
@@ -71,7 +104,12 @@ export async function POST(req: NextRequest) {
       state,
     });
   } catch (err) {
-    console.error("Deploy error:", err);
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("[/api/builder/deploy] Error:", {
+      timestamp: new Date().toISOString(),
+      error: errorMsg,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return NextResponse.json({ error: "Deploy failed" }, { status: 500 });
   }
 }

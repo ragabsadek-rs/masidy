@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { deductCredits } from "@/lib/credits";
 import type { CreditAction } from "@/lib/stripe";
+import { BuilderChatRequestSchema } from "@/lib/validation";
+import { rateLimit, getRateLimitKey, getTimeUntilReset } from "@/lib/ratelimit";
 
 const MODEL_MAP = {
   lite:     { model: "claude-haiku-4-5",  action: "message_lite"     as CreditAction },
@@ -11,26 +13,49 @@ const MODEL_MAP = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, model = "standard" } = await req.json();
+    // Validate request
+    const body = await req.json();
+    const validation = BuilderChatRequestSchema.safeParse(body);
+    if (!validation.success) {
+      console.error("Builder chat validation failed:", validation.error);
+      return NextResponse.json(
+        { error: "Invalid request: " + validation.error.errors[0].message },
+        { status: 400 }
+      );
+    }
+
+    const { messages, model = "standard" } = validation.data;
     const tier = MODEL_MAP[model as keyof typeof MODEL_MAP] ?? MODEL_MAP.standard;
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return NextResponse.json({ error: "ANTHROPIC_API_KEY not set" }, { status: 500 });
 
-    // Auth check + credit deduction (skip if no Supabase configured)
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-      if (user) {
-        const result = await deductCredits(user.id, tier.action, `Masidy ${model} message`);
-        if (!result.success) {
-          return NextResponse.json(
-            { error: "Insufficient credits", remaining: result.remaining },
-            { status: 402 }
-          );
-        }
-      }
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const userId = user.id;
+    const rateLimitKey = getRateLimitKey(userId, "chat");
+    if (!rateLimit(rateLimitKey, 10, 60 * 1000)) {
+      const resetIn = getTimeUntilReset(rateLimitKey);
+      return NextResponse.json(
+        { error: `Rate limited. Try again in ${Math.ceil(resetIn / 1000)}s` },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(resetIn / 1000)) } }
+      );
+    }
+
+    const result = await deductCredits(userId, tier.action, `Masidy ${model} message`);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Insufficient credits", remaining: result.remaining },
+        { status: 402 }
+      );
     }
 
     const systemPrompt = `You are Masidy, an expert AI software engineer.
@@ -78,7 +103,12 @@ For questions only: { "explanation": "your answer", "files": [] }`;
 
     return NextResponse.json({ explanation: text, files: [] });
   } catch (err) {
-    console.error("Builder chat error:", err);
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error("[/api/builder/chat] Error:", {
+      timestamp: new Date().toISOString(),
+      error: errorMsg,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

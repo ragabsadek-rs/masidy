@@ -36,6 +36,12 @@ create policy "deployments_service_role" on public.deployments
   using (true)
   with check (true);
 
+create policy "user_integrations_service_role" on public.user_integrations
+  for all
+  to service_role
+  using (true)
+  with check (true);
+
 -- ── Indexes for performance ────────────────────────────────────────────────
 create index if not exists idx_credits_user_id on public.credits(user_id);
 create index if not exists idx_transactions_user_id on public.credit_transactions(user_id);
@@ -43,3 +49,5 @@ create index if not exists idx_transactions_created_at on public.credit_transact
 create index if not exists idx_projects_user_id on public.projects(user_id);
 create index if not exists idx_deployments_user_id on public.deployments(user_id);
 create index if not exists idx_deployments_project_id on public.deployments(project_id);
+create index if not exists idx_user_integrations_user_id on public.user_integrations(user_id);
+create index if not exists idx_user_integrations_integration_id on public.user_integrations(integration_id);

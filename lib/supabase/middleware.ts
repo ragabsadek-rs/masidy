@@ -1,6 +1,22 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const SECURITY_HEADERS: Record<string, string> = {
+  "Content-Security-Policy":
+    "default-src 'self'; base-uri 'self'; block-all-mixed-content; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.anthropic.com https://*.supabase.co https://*.stripe.com https://*.vercel.app; font-src 'self' data:;",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+};
+
+function setSecurityHeaders(response: NextResponse) {
+  Object.entries(SECURITY_HEADERS).forEach(([name, value]) => {
+    response.headers.set(name, value);
+  });
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -8,7 +24,10 @@ export async function updateSession(request: NextRequest) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // Skip auth protection if Supabase not configured
-  if (!url || !key) return supabaseResponse;
+  if (!url || !key) {
+    setSecurityHeaders(supabaseResponse);
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -36,5 +55,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  setSecurityHeaders(supabaseResponse);
   return supabaseResponse;
 }
