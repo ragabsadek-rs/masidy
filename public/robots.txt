@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /blog
+Allow: /careers
+Allow: /contact
+Allow: /changelog
+Allow: /docs
+Allow: /privacy
+Allow: /security
+Allow: /status
+Allow: /terms
+
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /builder
+Disallow: /auth
+Disallow: /_next/
+Disallow: *.json
+
+Sitemap: https://masidy.app/sitemap.xml

@@ -51,12 +51,28 @@ create table if not exists public.deployments (
   created_at timestamptz default now()
 );
 
+-- ── Installed integrations ─────────────────────────────────────────────────
+create table if not exists public.user_integrations (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  integration_id text not null,
+  slug text not null,
+  name text not null,
+  provider text not null,
+  category text,
+  description text,
+  installed_at timestamptz default now(),
+  status text not null default 'installed',
+  metadata jsonb default '{}'::jsonb
+);
+
 -- ── Row Level Security ────────────────────────────────────────────────────
 alter table public.profiles enable row level security;
 alter table public.credits enable row level security;
 alter table public.credit_transactions enable row level security;
 alter table public.projects enable row level security;
 alter table public.deployments enable row level security;
+alter table public.user_integrations enable row level security;
 
 -- Profiles: users can only see/edit their own
 create policy "profiles_own" on public.profiles
@@ -77,6 +93,19 @@ create policy "projects_own" on public.projects
 -- Deployments: users can only see their own
 create policy "deployments_own" on public.deployments
   for all using (auth.uid() = user_id);
+
+-- User integrations: users can only see/manage their own installed integrations
+create policy "user_integrations_own" on public.user_integrations
+  for select using (auth.uid() = user_id);
+
+create policy "user_integrations_insert" on public.user_integrations
+  for insert with check (auth.uid() = user_id);
+
+create policy "user_integrations_update" on public.user_integrations
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "user_integrations_delete" on public.user_integrations
+  for delete using (auth.uid() = user_id);
 
 -- ── Auto-create profile + credits on signup ───────────────────────────────
 create or replace function public.handle_new_user()

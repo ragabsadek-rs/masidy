@@ -1,42 +1,59 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, Home, ArrowRight } from "lucide-react";
 
-export default function ErrorPage({
+export default function Error({
   error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
-
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 text-center">
-      <AlertCircle className="w-10 h-10 text-muted-foreground/30 mb-6" />
-      <h1 className="text-2xl font-display tracking-tight mb-2">Something went wrong</h1>
-      <p className="text-sm text-muted-foreground mb-8 max-w-xs">
-        An unexpected error occurred. If this keeps happening, please contact support.
-      </p>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={reset}
-          className="flex items-center gap-2 bg-foreground text-background px-5 h-9 text-sm font-medium hover:bg-foreground/90 transition-colors duration-150"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />Try again
-        </button>
-        <Link href="/"
-          className="flex items-center gap-2 border border-foreground/15 px-5 h-9 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors duration-150">
-          Go home
-        </Link>
+    <main className="relative min-h-screen overflow-x-hidden flex flex-col items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full text-center">
+        <div className="flex justify-center mb-6">
+          <div className="bg-destructive/10 p-4 rounded-full">
+            <AlertCircle className="w-8 h-8 text-destructive" />
+          </div>
+        </div>
+
+        <h1 className="text-4xl font-bold mb-2">Something went wrong</h1>
+        <p className="text-muted-foreground mb-2">
+          We encountered an unexpected error. Our team has been notified.
+        </p>
+
+        {error.digest && (
+          <p className="text-xs text-muted-foreground/70 font-mono mb-6 bg-muted p-3 rounded">
+            Error ID: {error.digest}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={reset}
+            className="w-full h-10 bg-foreground text-background font-medium flex items-center justify-center gap-2 hover:bg-foreground/90 transition-colors"
+          >
+            Try again
+          </button>
+
+          <Link
+            href="/"
+            className="w-full h-10 border border-foreground/15 flex items-center justify-center gap-2 hover:bg-foreground/5 transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            Back to home
+          </Link>
+        </div>
+
+        <p className="text-xs text-muted-foreground mt-6">
+          Need help?{" "}
+          <Link href="/contact" className="underline underline-offset-2 hover:no-underline">
+            Contact support
+          </Link>
+        </p>
       </div>
-      {error.digest && (
-        <p className="text-[10px] font-mono text-muted-foreground/40 mt-8">Error ID: {error.digest}</p>
-      )}
-    </div>
+    </main>
   );
 }
