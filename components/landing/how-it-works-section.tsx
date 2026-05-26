@@ -5,38 +5,39 @@ import { useEffect, useRef, useState } from "react";
 const steps = [
   {
     number: "I",
-    title: "Connect your tools",
-    description: "Integrate with your existing stack in minutes. We support 200+ data sources out of the box.",
-    code: `import { masidy } from '@masidy/core'
+    title: "Describe your app",
+    description: "Type what you want to build in plain English. Be as detailed or as brief as you like.",
+    code: `// You type:
+"Build a SaaS dashboard with user auth,
+ a billing page using Stripe, and a
+ dark mode toggle."
 
-masidy.connect({
-  source: 'your-database',
-  sync: true
-})`,
+// Masidy AI gets to work...`,
   },
   {
     number: "II",
-    title: "Build your workflow",
-    description: "Design powerful automations with our visual builder or write code directly.",
-    code: `masidy.workflow('process', {
-  trigger: 'event',
-  actions: [
-    'validate',
-    'transform', 
-    'deliver'
-  ]
-})`,
+    title: "AI writes the code",
+    description: "Masidy AI generates production-ready Next.js code with Tailwind, TypeScript, and all dependencies.",
+    code: `// Generated files:
+app/
+  layout.tsx        ✓
+  dashboard/page.tsx ✓
+  billing/page.tsx  ✓
+components/
+  ThemeToggle.tsx   ✓
+lib/stripe.ts       ✓`,
   },
   {
     number: "III",
-    title: "Ship to production",
-    description: "Deploy globally with zero configuration. Your app goes live in under 30 seconds.",
-    code: `masidy.deploy({
-  target: 'production',
-  regions: 'auto'
-})
+    title: "Deploy live instantly",
+    description: "Your app deploys to Vercel automatically. Get a live URL in under 60 seconds.",
+    code: `// Deploying to Vercel...
+✓ Build complete (12s)
+✓ Edge network propagated
+✓ SSL certificate issued
 
-// Deployed to 12 regions`,
+// Live at:
+https://your-app.vercel.app`,
   },
 ];
 
@@ -151,7 +152,7 @@ export function HowItWorksSection() {
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                   <div className="w-3 h-3 rounded-full bg-background/20" />
                 </div>
-                <span className="text-xs font-mono text-background/40">workflow.ts</span>
+                <span className="text-xs font-mono text-background/40">builder.ts</span>
               </div>
 
               {/* Code content */}

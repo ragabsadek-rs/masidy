@@ -5,52 +5,59 @@ import { Copy, Check } from "lucide-react";
 
 const codeExamples = [
   {
-    label: "Install",
-    code: `npm install @masidy/sdk
-
-# or
-yarn add @masidy/sdk
-pnpm add @masidy/sdk`,
+    label: "Describe",
+    code: `// POST /api/builder/chat
+{
+  "projectId": "proj_abc123",
+  "model": "masidy-standard",
+  "message": "Add a Stripe billing page
+    with a plan selector and
+    checkout button."
+}`,
   },
   {
-    label: "Initialize",
-    code: `import { Masidy } from '@masidy/sdk'
-
-const masidy = new Masidy({
-  apiKey: process.env.MASIDY_KEY
-})`,
+    label: "Generate",
+    code: `// AI response — files generated:
+{
+  "files": [
+    "app/billing/page.tsx",
+    "components/PlanSelector.tsx",
+    "lib/stripe.ts"
+  ],
+  "creditsUsed": 2,
+  "model": "masidy-standard"
+}`,
   },
   {
     label: "Deploy",
-    code: `const app = await masidy.deploy({
-  name: 'my-app',
-  region: 'auto',
-  scaling: {
-    min: 1,
-    max: 100
-  }
-})
+    code: `// POST /api/builder/deploy
+// Auto-triggered after generation
 
-console.log('Live at:', app.url)`,
+{
+  "status": "deployed",
+  "url": "https://your-app.vercel.app",
+  "deployTime": "47s",
+  "creditsUsed": 1
+}`,
   },
 ];
 
 const features = [
   { 
-    title: "TypeScript native", 
-    description: "Full type safety with auto-generated types."
+    title: "Claude AI powered", 
+    description: "Anthropic's Claude writes your production code."
   },
   { 
-    title: "Zero config", 
-    description: "Sensible defaults that just work."
+    title: "Next.js 14 output", 
+    description: "App Router, TypeScript, Tailwind — ready to ship."
   },
   { 
-    title: "Edge-ready", 
-    description: "Runs anywhere: Node, Deno, Bun, browsers."
+    title: "Auto-deploys to Vercel", 
+    description: "Every generation triggers a live deployment."
   },
   { 
-    title: "12KB gzipped", 
-    description: "Lightweight with zero dependencies."
+    title: "Credit-based billing", 
+    description: "Pay per message. Credits never expire."
   },
 ];
 
@@ -122,13 +129,13 @@ export function DevelopersSection() {
               For developers
             </span>
             <h2 className="text-4xl lg:text-6xl font-display tracking-tight mb-8">
-              Built by devs.
+              Describe it.
               <br />
-              <span className="text-muted-foreground">For devs.</span>
+              <span className="text-muted-foreground">We build it.</span>
             </h2>
             <p className="text-xl text-muted-foreground mb-12 leading-relaxed">
-              A thoughtfully designed SDK that gets out of your way. 
-              Ship faster with intuitive APIs and exceptional documentation.
+              The Masidy builder API turns plain-English prompts into deployed Next.js apps.
+              Every message generates real code and ships it live.
             </p>
             
             {/* Features */}

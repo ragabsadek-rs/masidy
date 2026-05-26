@@ -46,28 +46,28 @@ function AnimatedCounter({ end, suffix = "", prefix = "" }: { end: number; suffi
 
 const metrics = [
   { 
-    value: 2847392, 
+    value: 10, 
     suffix: "", 
     prefix: "",
-    label: "API requests today",
+    label: "Free credits on signup",
   },
   { 
-    value: 99, 
-    suffix: ".99%", 
-    prefix: "",
-    label: "Uptime this quarter",
+    value: 60, 
+    suffix: "s", 
+    prefix: "<\u00A0",
+    label: "To first deployment",
   },
   { 
-    value: 23, 
-    suffix: "ms", 
-    prefix: "",
-    label: "Average response time",
-  },
-  { 
-    value: 184, 
+    value: 3, 
     suffix: "", 
     prefix: "",
-    label: "Countries served",
+    label: "AI models available",
+  },
+  { 
+    value: 100, 
+    suffix: "+", 
+    prefix: "",
+    label: "Edge locations via Vercel",
   },
 ];
 
@@ -109,9 +109,9 @@ export function MetricsSection() {
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}
             >
-              Performance you
+              Built for speed.
               <br />
-              can measure.
+              Priced for builders.
             </h2>
           </div>
           <div className="flex items-center gap-4 font-mono text-sm text-muted-foreground">

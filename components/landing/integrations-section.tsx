@@ -6,15 +6,15 @@ const integrations = [
   { name: "GitHub", category: "Version Control" },
   { name: "Slack", category: "Communication" },
   { name: "Stripe", category: "Payments" },
-  { name: "PostgreSQL", category: "Database" },
-  { name: "Redis", category: "Cache" },
-  { name: "AWS", category: "Cloud" },
-  { name: "MongoDB", category: "Database" },
-  { name: "Vercel", category: "Hosting" },
-  { name: "Figma", category: "Design" },
-  { name: "Linear", category: "Project Management" },
+  { name: "Datadog", category: "Monitoring" },
   { name: "Notion", category: "Documentation" },
-  { name: "OpenAI", category: "AI/ML" },
+  { name: "AWS", category: "Cloud" },
+  { name: "PostgreSQL", category: "Database" },
+  { name: "Sentry", category: "Error Tracking" },
+  { name: "Upstash", category: "Redis / Queue" },
+  { name: "PlanetScale", category: "Database" },
+  { name: "Vercel", category: "Hosting" },
+  { name: "Anthropic", category: "AI/ML" },
 ];
 
 export function IntegrationsSection() {
@@ -53,7 +53,7 @@ export function IntegrationsSection() {
             you already use.
           </h2>
           <p className="text-xl text-muted-foreground">
-            200+ pre-built integrations. Connect your entire stack in minutes.
+            12 pre-built integrations. Connect your stack from the dashboard.
           </p>
         </div>
 

@@ -4,32 +4,32 @@ import { useEffect, useState } from "react";
 
 const testimonials = [
   {
-    quote: "Masidy transformed our deployment pipeline. What used to take hours now happens in seconds.",
+    quote: "I described my SaaS idea and had a working prototype deployed in 20 minutes. Masidy is insane.",
     author: "Sarah Chen",
-    role: "CTO",
+    role: "Founder",
     company: "Meridian Labs",
-    metric: "10x faster deployments",
+    metric: "20 min to prototype",
   },
   {
-    quote: "The developer experience is unmatched. Our team's productivity has never been higher.",
+    quote: "No more boilerplate. I just describe what I need and the AI handles the rest.",
     author: "Marcus Webb",
     role: "Engineering Lead",
     company: "Flux Systems",
-    metric: "40% more features shipped",
+    metric: "Zero boilerplate",
   },
   {
-    quote: "Finally, infrastructure that scales with our ambition. Zero downtime since we switched.",
+    quote: "The credit system is genius — I only pay for what I actually build.",
     author: "Elena Rodriguez",
-    role: "VP Engineering",
+    role: "Indie Developer",
     company: "Beacon AI",
-    metric: "99.99% uptime",
+    metric: "Pay per build",
   },
   {
-    quote: "The integrations are seamless. We connected our entire stack in a single afternoon.",
+    quote: "From idea to live URL in under a minute. This is the future of development.",
     author: "James Liu",
-    role: "Founder",
+    role: "CTO",
     company: "Prism Analytics",
-    metric: "50+ integrations used",
+    metric: "< 60s to deploy",
   },
 ];
 

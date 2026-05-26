@@ -5,26 +5,26 @@ import { useEffect, useRef, useState } from "react";
 const features = [
   {
     number: "01",
-    title: "Instant Deployment",
-    description: "Push to production in seconds. Our edge network ensures your applications load instantly, anywhere in the world.",
-    visual: "deploy",
-  },
-  {
-    number: "02",
-    title: "AI-Native Workflows",
-    description: "Build intelligent applications with built-in AI capabilities. From inference to training, everything scales automatically.",
+    title: "AI Code Generation",
+    description: "Describe your app in plain English. Claude AI writes production-ready Next.js code instantly.",
     visual: "ai",
   },
   {
+    number: "02",
+    title: "One-Click Deploy",
+    description: "Every build deploys live to Vercel automatically. Get a real URL in under 60 seconds.",
+    visual: "deploy",
+  },
+  {
     number: "03",
-    title: "Real-time Collaboration",
-    description: "Work together seamlessly. Live preview, instant feedback, and version control that actually makes sense.",
+    title: "Full Dashboard",
+    description: "Manage deployments, domains, env vars, analytics, firewall, CDN, and storage from one place.",
     visual: "collab",
   },
   {
     number: "04",
-    title: "Enterprise Security",
-    description: "Bank-grade encryption, SOC 2 compliance, and granular access controls. Your data stays yours.",
+    title: "Credit-Based Pricing",
+    description: "Pay only for what you use. Credits never expire. Start with 10 free credits on signup.",
     visual: "security",
   },
 ];
