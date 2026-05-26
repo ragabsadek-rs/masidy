@@ -64,6 +64,21 @@ export default function OnboardingPage() {
         setLoading(false);
         return;
       }
+      // Create a project from the selected template
+      try {
+        const res = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ templateId: selectedTemplate }),
+        });
+        const data = await res.json();
+        if (data?.id) {
+          router.push(`/builder?projectId=${data.id}`);
+          return;
+        }
+      } catch {
+        // Fall back to dashboard if project creation fails
+      }
       router.push("/dashboard");
     } catch {
       setError("Something went wrong. Please try again.");

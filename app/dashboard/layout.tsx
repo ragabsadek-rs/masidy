@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/dashboard/app-sidebar";
+import { BottomNav } from "@/components/dashboard/bottom-nav";
 import { Separator } from "@/components/ui/separator";
 
 export const metadata = {
@@ -22,10 +23,11 @@ export default function DashboardLayout({
           {/* Breadcrumb / page title injected by each page via a slot — 
               for now we render children which include their own top bar content */}
         </header>
-        <div className="flex flex-1 flex-col overflow-auto">
+        <div className="flex flex-1 flex-col overflow-auto pb-16 md:pb-0">
           {children}
         </div>
       </SidebarInset>
+      <BottomNav />
     </SidebarProvider>
   );
 }

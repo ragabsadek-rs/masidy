@@ -101,6 +101,12 @@ export async function POST(req: NextRequest) {
     const { messages, model } = data;
     const tier = MODEL_MAP[model] ?? MODEL_MAP.lite;
 
+    // ── Persist user message (fire-and-forget) ───────────────────────────
+    if (userId && data.projectId) {
+      const { insertUserMessage } = await import("@/lib/messages");
+      void insertUserMessage(userId, data.projectId, messages[messages.length - 1]?.content ?? "");
+    }
+
     // ── Deduct credits ───────────────────────────────────────────────────
     if (userId) {
       const result = await deductCredits(userId, tier.action, `Masidy ${model} message`);
@@ -140,6 +146,16 @@ export async function POST(req: NextRequest) {
     // Parse JSON from response
     const parsed = extractJSON(text);
     if (parsed) {
+      // ── Persist assistant message (fire-and-forget) ──────────────────
+      if (userId && data.projectId) {
+        const { insertAssistantMessage } = await import("@/lib/messages");
+        void insertAssistantMessage(
+          userId,
+          data.projectId,
+          parsed.explanation ?? "Done.",
+          Array.isArray(parsed.files) ? parsed.files : []
+        );
+      }
       return NextResponse.json({
         explanation: parsed.explanation ?? "Done.",
         files: Array.isArray(parsed.files) ? parsed.files : [],

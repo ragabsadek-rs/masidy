@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, Suspense, useRef, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { FileTree, FileNode } from "@/components/builder/file-tree";
@@ -546,6 +546,7 @@ function DatabaseTab() {
 // ── Main ───────────────────────────────────────────────────────────────────
 function BuilderContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -564,10 +565,86 @@ function BuilderContent() {
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Track deploy error for the preview pane
   const [deployError, setDeployError] = useState<string | null>(null);
+  // Project persistence
+  const [projectId, setProjectId] = useState<string | null>(searchParams.get("projectId"));
+  const [projectNotFound, setProjectNotFound] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   // Load credits
   useEffect(() => {
     fetch("/api/credits/balance").then(r => r.json()).then(d => setCredits(d.balance ?? null)).catch(() => {});
+  }, []);
+
+  // Project initialization on mount
+  const projectInitialized = useRef(false);
+  useEffect(() => {
+    if (projectInitialized.current) return;
+    projectInitialized.current = true;
+
+    const pid = searchParams.get("projectId");
+
+    if (!pid) {
+      // No projectId — create a new project and redirect
+      setIsInitializing(true);
+      fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `Untitled Project — ${new Date().toLocaleDateString()}` }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.id) {
+            router.replace(`/builder?projectId=${data.id}`);
+            setProjectId(data.id);
+          }
+        })
+        .catch(() => {
+          // If project creation fails, continue without persistence
+        })
+        .finally(() => setIsInitializing(false));
+    } else {
+      // Has projectId — load project files and messages
+      setIsInitializing(true);
+      Promise.all([
+        fetch(`/api/projects/${pid}`).then((r) => {
+          if (r.status === 404) throw new Error("not_found");
+          return r.json();
+        }),
+        fetch(`/api/projects/${pid}/messages`).then((r) => {
+          if (!r.ok) return [];
+          return r.json();
+        }),
+      ])
+        .then(([project, msgs]) => {
+          // Restore files into editor
+          if (Array.isArray(project.files) && project.files.length > 0) {
+            setFiles(project.files);
+            setActiveFile(project.files[0]);
+            setRightTab("code");
+          }
+          // Restore messages into chat
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const restored: Message[] = msgs.map((m: {
+              id: string; role: "user" | "assistant"; content: string;
+              files?: FileNode[]; created_at: string;
+            }) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              files: m.files ?? [],
+              timestamp: new Date(m.created_at),
+            }));
+            setMessages(restored);
+          }
+        })
+        .catch((err) => {
+          if (err?.message === "not_found") {
+            setProjectNotFound(true);
+          }
+          // Other errors: continue without restoring
+        })
+        .finally(() => setIsInitializing(false));
+    }
   }, []);
 
   // Auto-send prompt from URL
@@ -589,7 +666,7 @@ function BuilderContent() {
       const history = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
       const res = await fetch("/api/builder/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, model }),
+        body: JSON.stringify({ messages: history, model, projectId }),
       });
       const data = await res.json();
 
@@ -619,6 +696,15 @@ function BuilderContent() {
             const idx = updated.findIndex((x) => x.path === f.path);
             if (idx >= 0) updated[idx] = f; else updated.push(f);
           }
+          // Fire-and-forget: persist updated files to project
+          if (projectId) {
+            const merged = updated;
+            fetch(`/api/projects/${projectId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ files: merged }),
+            }).catch(() => {});
+          }
           return updated;
         });
         setActiveFile(data.files[0]);
@@ -632,7 +718,7 @@ function BuilderContent() {
         timestamp: new Date(),
       }]);
     } finally { setIsLoading(false); }
-  }, [messages]);
+  }, [messages, projectId]);
 
   async function handleDeploy() {
     if (!files.length) return;
@@ -687,7 +773,7 @@ function BuilderContent() {
       const deployPromise = fetch("/api/builder/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files, projectName: `masidy-${Date.now()}` }),
+        body: JSON.stringify({ files, projectName: `masidy-${Date.now()}`, projectId }),
       });
 
       // While waiting for the deploy to finish, show a pulsing "building" log
@@ -769,6 +855,15 @@ function BuilderContent() {
           `${ts()} [INFO] ✓ Build complete`,
           `${ts()} [INFO] ✓ Live at: ${data.url}`,
         ]);
+
+        // Fire-and-forget: persist vercelProjectId to project
+        if (projectId && data.vercelProjectId) {
+          fetch(`/api/projects/${projectId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vercelProjectId: data.vercelProjectId }),
+          }).catch(() => {});
+        }
 
         // Set the iframe to the live URL
         setPreviewUrl(data.url);

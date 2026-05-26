@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Layers, ScrollText, BarChart2, Zap, Eye,
   Shield, Globe, KeyRound, Link2, HardDrive, Flag, Bot, Cpu,
   ChevronRight, Search, Bell, MoreHorizontal, ChevronsUpDown,
-  CreditCard, LogOut, Settings, User,
+  CreditCard, LogOut, Settings, User, FolderOpen,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -27,6 +27,7 @@ import Link from "next/link";
 const navItems = [
   { label: "Overview",              icon: LayoutDashboard, href: "/dashboard" },
   { label: "Builder",               icon: Bot,             href: "/builder" },
+  { label: "Projects",              icon: FolderOpen,      href: "/dashboard/projects" },
   { label: "Deployments",           icon: Layers,          href: "/dashboard/deployments" },
   { label: "Logs",                  icon: ScrollText,      href: "/dashboard/logs" },
   { label: "Analytics",             icon: BarChart2,       href: "/dashboard/analytics" },

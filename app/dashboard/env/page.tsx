@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, RefreshCw, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Copy, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -70,11 +70,6 @@ export default function EnvPage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  const grouped = TARGETS.reduce((acc, t) => {
-    acc[t] = envs.filter(e => e.target?.includes(t));
-    return acc;
-  }, {} as Record<string, EnvVar[]>);
-
   return (
     <div className="flex flex-col min-h-full">
       <Toaster />
@@ -92,10 +87,9 @@ export default function EnvPage() {
       </div>
 
       <div className="flex-1 px-6 py-6 max-w-4xl">
-        {/* Add form */}
         {showAdd && (
           <form onSubmit={handleAdd} className="border border-foreground/10 p-4 mb-6 flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Key</label>
                 <input value={newKey} onChange={e => setNewKey(e.target.value)} placeholder="MY_SECRET_KEY"
@@ -109,7 +103,7 @@ export default function EnvPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">Environments</label>
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 {TARGETS.map(t => (
                   <label key={t} className="flex items-center gap-1.5 text-xs cursor-pointer">
                     <input type="checkbox" checked={newTarget.includes(t)}
@@ -133,56 +127,60 @@ export default function EnvPage() {
           </form>
         )}
 
-        {loading ? (
-          <div className="border border-foreground/10 flex flex-col">
-            <div className="grid grid-cols-[1fr_120px_80px] px-4 py-2 border-b border-foreground/10 bg-foreground/[0.02]">
-              <div className="h-2.5 w-8 animate-pulse bg-foreground/10" />
-              <div className="h-2.5 w-20 animate-pulse bg-foreground/10" />
-              <div className="h-2.5 w-8 animate-pulse bg-foreground/10" />
-            </div>
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className={`grid grid-cols-[1fr_120px_80px_auto] items-center px-4 py-2.5 ${i < 5 ? "border-b border-foreground/10" : ""}`}>
-                <div className="h-3.5 w-40 animate-pulse bg-foreground/10" />
-                <div className="flex gap-1">
-                  <div className="h-4 w-8 animate-pulse bg-foreground/10" />
-                  <div className="h-4 w-8 animate-pulse bg-foreground/10" />
+        <div className="overflow-x-auto">
+          <div className="min-w-[560px]">
+            {loading ? (
+              <div className="border border-foreground/10 flex flex-col">
+                <div className="grid grid-cols-[1fr_120px_80px] px-4 py-2 border-b border-foreground/10 bg-foreground/[0.02]">
+                  <div className="h-2.5 w-8 animate-pulse bg-foreground/10" />
+                  <div className="h-2.5 w-20 animate-pulse bg-foreground/10" />
+                  <div className="h-2.5 w-8 animate-pulse bg-foreground/10" />
                 </div>
-                <div className="h-3 w-12 animate-pulse bg-foreground/10" />
-                <div className="h-6 w-6 animate-pulse bg-foreground/10" />
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className={`grid grid-cols-[1fr_120px_80px_auto] items-center px-4 py-2.5 ${i < 5 ? "border-b border-foreground/10" : ""}`}>
+                    <div className="h-3.5 w-40 animate-pulse bg-foreground/10" />
+                    <div className="flex gap-1">
+                      <div className="h-4 w-8 animate-pulse bg-foreground/10" />
+                      <div className="h-4 w-8 animate-pulse bg-foreground/10" />
+                    </div>
+                    <div className="h-3 w-12 animate-pulse bg-foreground/10" />
+                    <div className="h-6 w-6 animate-pulse bg-foreground/10" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="border border-foreground/10">
-            <div className="grid grid-cols-[1fr_120px_80px] px-4 py-2 border-b border-foreground/10 bg-foreground/[0.02]">
-              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Key</span>
-              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Environments</span>
-              <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Type</span>
-            </div>
-            {envs.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">No environment variables</div>
-            ) : envs.map((env, i) => (
-              <div key={env.id} className={`grid grid-cols-[1fr_120px_80px_auto] items-center px-4 py-2.5 hover:bg-foreground/[0.02] transition-colors duration-150 ${i < envs.length - 1 ? "border-b border-foreground/10" : ""}`}>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-sm font-mono truncate">{env.key}</span>
-                  <button onClick={() => copyKey(env.key)} className="text-muted-foreground hover:text-foreground transition-colors duration-150 shrink-0">
-                    {copied === env.key ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                  </button>
+            ) : (
+              <div className="border border-foreground/10">
+                <div className="grid grid-cols-[1fr_120px_80px] px-4 py-2 border-b border-foreground/10 bg-foreground/[0.02]">
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Key</span>
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Environments</span>
+                  <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Type</span>
                 </div>
-                <div className="flex flex-wrap gap-1">
-                  {env.target?.map(t => (
-                    <span key={t} className="text-[9px] font-mono border border-foreground/10 px-1 py-0.5 capitalize">{t.slice(0, 4)}</span>
-                  ))}
-                </div>
-                <span className="text-xs font-mono text-muted-foreground">{env.type}</span>
-                <button onClick={() => handleDelete(env.id, env.key)}
-                  className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors duration-150">
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                {envs.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">No environment variables</div>
+                ) : envs.map((env, i) => (
+                  <div key={env.id} className={`grid grid-cols-[1fr_120px_80px_auto] items-center px-4 py-2.5 hover:bg-foreground/[0.02] transition-colors duration-150 ${i < envs.length - 1 ? "border-b border-foreground/10" : ""}`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-mono truncate">{env.key}</span>
+                      <button onClick={() => copyKey(env.key)} className="text-muted-foreground hover:text-foreground transition-colors duration-150 shrink-0">
+                        {copied === env.key ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {env.target?.map(t => (
+                        <span key={t} className="text-[9px] font-mono border border-foreground/10 px-1 py-0.5 capitalize">{t.slice(0, 4)}</span>
+                      ))}
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">{env.type}</span>
+                    <button onClick={() => handleDelete(env.id, env.key)}
+                      className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors duration-150">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

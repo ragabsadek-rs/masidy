@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { GitBranch, ExternalLink, RotateCcw, RefreshCw, ChevronDown, Filter } from "lucide-react";
+import { GitBranch, ExternalLink, RefreshCw } from "lucide-react";
 import { deploymentStatusColor, timeAgo } from "@/lib/vercel";
 
 export const dynamic = "force-dynamic";
 
 interface Deployment {
   uid: string; name: string; url: string; state: string;
-  created: number; meta?: { githubCommitRef?: string; githubCommitMessage?: string; githubCommitAuthorName?: string };
+  created: number;
+  meta?: { githubCommitRef?: string; githubCommitMessage?: string; githubCommitAuthorName?: string };
   target?: string;
 }
 
@@ -48,78 +49,61 @@ export default function DeploymentsPage() {
       </div>
 
       <div className="flex-1 px-6 py-4">
-        {loading ? (
-          <div className="border border-foreground/10 flex flex-col">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className={`flex items-center gap-4 px-4 py-3 ${i < 4 ? "border-b border-foreground/10" : ""}`}>
-                <div className="h-3 w-24 animate-pulse bg-foreground/10 shrink-0" />
-                <div className="flex-1 flex flex-col gap-1.5">
-                  <div className="h-3 w-48 animate-pulse bg-foreground/10" />
-                  <div className="h-2.5 w-64 animate-pulse bg-foreground/10" />
-                </div>
-                <div className="h-4 w-16 animate-pulse bg-foreground/10 shrink-0" />
-                <div className="h-3 w-20 animate-pulse bg-foreground/10 shrink-0" />
-                <div className="h-3 w-16 animate-pulse bg-foreground/10 shrink-0" />
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-2">
-            <p className="text-sm text-muted-foreground">No deployments found</p>
-          </div>
-        ) : (
-          <div className="border border-foreground/10">
-            {filtered.map((d, i) => (
-              <div key={d.uid}
-                className={`flex items-center gap-4 px-4 py-3 hover:bg-foreground/[0.02] transition-colors duration-150 ${i < filtered.length - 1 ? "border-b border-foreground/10" : ""}`}>
-                {/* Status */}
-                <div className="flex items-center gap-2 w-24 shrink-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${deploymentStatusColor(d.state)}`} />
-                  <span className="text-xs font-mono capitalize">{d.state?.toLowerCase()}</span>
-                </div>
-
-                {/* URL */}
-                <div className="flex-1 min-w-0">
-                  <a href={`https://${d.url}`} target="_blank" rel="noopener noreferrer"
-                    className="text-sm font-mono text-blue-500 hover:underline truncate block">
-                    {d.url}
-                  </a>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <GitBranch className="w-3 h-3 text-muted-foreground shrink-0" />
-                    <span className="text-xs text-muted-foreground truncate">
-                      {d.meta?.githubCommitRef ?? "main"} — {d.meta?.githubCommitMessage ?? ""}
-                    </span>
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            {loading ? (
+              <div className="border border-foreground/10 flex flex-col">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className={`flex items-center gap-4 px-4 py-3 ${i < 4 ? "border-b border-foreground/10" : ""}`}>
+                    <div className="h-3 w-24 animate-pulse bg-foreground/10 shrink-0" />
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <div className="h-3 w-48 animate-pulse bg-foreground/10" />
+                      <div className="h-2.5 w-64 animate-pulse bg-foreground/10" />
+                    </div>
+                    <div className="h-4 w-16 animate-pulse bg-foreground/10 shrink-0" />
+                    <div className="h-3 w-20 animate-pulse bg-foreground/10 shrink-0" />
+                    <div className="h-3 w-16 animate-pulse bg-foreground/10 shrink-0" />
                   </div>
-                </div>
-
-                {/* Target */}
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 shrink-0 ${
-                  d.target === "production" ? "bg-foreground text-background" : "border border-foreground/15 text-muted-foreground"
-                }`}>
-                  {d.target ?? "preview"}
-                </span>
-
-                {/* Author */}
-                <span className="text-xs text-muted-foreground shrink-0 w-24 truncate">
-                  {d.meta?.githubCommitAuthorName ?? "—"}
-                </span>
-
-                {/* Time */}
-                <span className="text-xs font-mono text-muted-foreground shrink-0 w-20 text-right">
-                  {timeAgo(d.created)}
-                </span>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <a href={`https://${d.url}`} target="_blank" rel="noopener noreferrer"
-                    className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150">
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
+                ))}
               </div>
-            ))}
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-2">
+                <p className="text-sm text-muted-foreground">No deployments found</p>
+              </div>
+            ) : (
+              <div className="border border-foreground/10">
+                {filtered.map((d, i) => (
+                  <div key={d.uid}
+                    className={`flex items-center gap-4 px-4 py-3 hover:bg-foreground/[0.02] transition-colors duration-150 ${i < filtered.length - 1 ? "border-b border-foreground/10" : ""}`}>
+                    <div className="flex items-center gap-2 w-24 shrink-0">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${deploymentStatusColor(d.state)}`} />
+                      <span className="text-xs font-mono capitalize">{d.state?.toLowerCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <a href={`https://${d.url}`} target="_blank" rel="noopener noreferrer"
+                        className="text-sm font-mono text-blue-500 hover:underline truncate block">{d.url}</a>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <GitBranch className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span className="text-xs text-muted-foreground truncate">{d.meta?.githubCommitRef ?? "main"} — {d.meta?.githubCommitMessage ?? ""}</span>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 shrink-0 ${d.target === "production" ? "bg-foreground text-background" : "border border-foreground/15 text-muted-foreground"}`}>
+                      {d.target ?? "preview"}
+                    </span>
+                    <span className="text-xs text-muted-foreground shrink-0 w-24 truncate">{d.meta?.githubCommitAuthorName ?? "—"}</span>
+                    <span className="text-xs font-mono text-muted-foreground shrink-0 w-20 text-right">{timeAgo(d.created)}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a href={`https://${d.url}`} target="_blank" rel="noopener noreferrer"
+                        className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors duration-150">
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

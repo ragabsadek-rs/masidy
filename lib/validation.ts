@@ -7,6 +7,7 @@ export const BuilderChatRequestSchema = z.object({
     content: z.string().min(1).max(32000),
   })).min(1).max(100),
   model: z.enum(["lite", "standard", "opus"]).default("lite"),
+  projectId: z.string().uuid().optional(),
 });
 
 // ── Builder deploy ─────────────────────────────────────────────────────────
@@ -17,6 +18,8 @@ export const BuilderDeployRequestSchema = z.object({
     language: z.string().optional(),
   })).min(1).max(200),
   projectName: z.string().min(1).max(100).optional(),
+  projectId: z.string().uuid().optional(),
+  vercelProjectId: z.string().optional(),
 });
 
 // ── Checkout ───────────────────────────────────────────────────────────────

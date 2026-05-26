@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { CREDIT_COSTS, type CreditAction } from "@/lib/stripe";
+import { deductTeamCredits } from "@/lib/teams";
 
 export async function getCredits(userId: string): Promise<number> {
   const supabase = createAdminClient();
@@ -14,8 +15,14 @@ export async function getCredits(userId: string): Promise<number> {
 export async function deductCredits(
   userId: string,
   action: CreditAction,
-  description: string
+  description: string,
+  teamId?: string
 ): Promise<{ success: boolean; remaining: number; error?: string }> {
+  // When a teamId is provided, deduct from team credits instead of individual credits
+  if (teamId) {
+    return deductTeamCredits(teamId, action, description);
+  }
+
   const supabase = createAdminClient();
   const cost = CREDIT_COSTS[action];
 

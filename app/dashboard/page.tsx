@@ -47,7 +47,7 @@ export default function DashboardPage() {
   const filtered = branches.filter(b => !search || b.meta?.githubCommitRef?.includes(search) || b.url?.includes(search));
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col min-h-full overflow-x-hidden">
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-2.5 border-b border-foreground/10 shrink-0">
         <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-3 gap-px bg-foreground/10 border border-foreground/10 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-foreground/10 border border-foreground/10 mt-6">
           {/* Checklist */}
           <div className="bg-background p-4">
             <div className="flex items-center justify-between mb-3">
@@ -269,6 +269,7 @@ export default function DashboardPage() {
         {/* Active Branches */}
         <div className="mt-8">
           <h2 className="text-base font-medium mb-4">Active Branches</h2>
+          <div className="overflow-x-auto">
           <div className="border border-foreground/10">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-foreground/10">
               <div className="relative flex-1 max-w-sm">
@@ -299,6 +300,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
           </div>
         </div>
       </div>

@@ -346,10 +346,42 @@ export async function POST(req: NextRequest) {
     const { data, error } = parseBody(BuilderDeployRequestSchema, body);
     if (error || !data) return NextResponse.json({ error: error ?? "Invalid request body." }, { status: 400 });
 
-    const { files, projectName } = data;
+    const { files, projectName, projectId, vercelProjectId: existingVercelProjectId } = data;
     const name = (projectName ?? `masidy-app-${Date.now()}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 52);
 
-    // ── Build deploy payload ─────────────────────────────────────────────
+    // ── Per-user Vercel project isolation ────────────────────────────────
+    let resolvedVercelProjectId = existingVercelProjectId ?? null;
+
+    if (projectId && !resolvedVercelProjectId) {
+      const vercelProjectName = `masidy-${userId ?? "anon"}-${projectId}`
+        .toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 52);
+
+      try {
+        const createRes = await fetch(`https://api.vercel.com/v9/projects?teamId=${TEAM}`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: vercelProjectName, framework: "nextjs" }),
+        });
+        const createData = await createRes.json();
+        if (!createRes.ok) {
+          return NextResponse.json(
+            { error: createData?.error?.message ?? "Failed to create Vercel project" },
+            { status: createRes.status }
+          );
+        }
+        resolvedVercelProjectId = createData.id ?? null;
+        if (resolvedVercelProjectId && userId) {
+          try {
+            const { setVercelProjectId } = await import("@/lib/projects");
+            await setVercelProjectId(projectId, resolvedVercelProjectId);
+          } catch { /* non-fatal */ }
+        }
+      } catch {
+        return NextResponse.json({ error: "Could not reach Vercel to create project." }, { status: 502 });
+      }
+    }
+
+
     const { deployFiles, framework } = buildDeployFiles(files, name);
 
     // ── Create Vercel deployment ─────────────────────────────────────────
@@ -450,13 +482,20 @@ export async function POST(req: NextRequest) {
           status: state,
           branch: "main",
           commit_message: `Built with Masidy AI`,
+          ...(data.projectId ? { project_id: data.projectId } : {}),
         });
       } catch (e) {
         console.warn("Failed to save deployment to Supabase:", e);
       }
     }
 
-    return NextResponse.json({ url: liveUrl, deploymentId: deployId, state, logs });
+    return NextResponse.json({
+      url: liveUrl,
+      deploymentId: deployId,
+      state,
+      logs,
+      vercelProjectId: resolvedVercelProjectId,
+    });
 
   } catch (err) {
     console.error("Deploy error:", err);
