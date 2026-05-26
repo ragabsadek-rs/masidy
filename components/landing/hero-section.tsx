@@ -120,7 +120,7 @@ export function HeroSection() {
       </div>
 
       {/* Main content */}
-      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 pt-40 lg:pt-48 pb-16 flex-1">
+      <div className="relative z-10 max-w-[1400px] mx-auto px-6 lg:px-12 pt-24 lg:pt-28 pb-16 flex-1">
         {/* Eyebrow */}
         <div
           className={`mb-8 transition-all duration-700 ${
@@ -134,9 +134,9 @@ export function HeroSection() {
         </div>
 
         {/* Main headline */}
-        <div className="mb-12">
+        <div className="mb-8">
           <h1
-            className={`text-[clamp(3rem,12vw,10rem)] font-display leading-[0.9] tracking-tight transition-all duration-1000 ${
+            className={`text-[clamp(2.5rem,9vw,7rem)] font-display leading-[0.9] tracking-tight transition-all duration-1000 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}
           >
@@ -172,7 +172,7 @@ export function HeroSection() {
             <div className="p-6 pb-4">
               <textarea
                 ref={textareaRef}
-                rows={5}
+                rows={3}
                 onKeyDown={handleKeyDown}
                 className="w-full bg-transparent border-none outline-none resize-none text-xl text-foreground placeholder:text-muted-foreground/40 font-sans leading-relaxed"
               />
