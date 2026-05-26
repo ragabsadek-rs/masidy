@@ -21,17 +21,17 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (!existing) {
-        // New user — give 10 free credits
+        // New user — give 50 free credits (increased from 10)
         await admin.from("credits").insert({
           user_id: data.user.id,
-          balance: 10,
+          balance: 50,
         });
         await admin.from("credit_transactions").insert({
           user_id: data.user.id,
           action: "signup_bonus",
-          amount: 10,
-          description: "Welcome bonus — 10 free credits",
-          balance_after: 10,
+          amount: 50,
+          description: "Welcome bonus — 50 free credits",
+          balance_after: 50,
         });
         // Send new users through onboarding
         return NextResponse.redirect(`${origin}/onboarding`);
