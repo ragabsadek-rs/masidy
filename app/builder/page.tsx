@@ -666,7 +666,7 @@ function BuilderContent() {
       const history = [...messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
       const res = await fetch("/api/builder/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history, model, projectId }),
+        body: JSON.stringify({ messages: history, model, projectId, existingFiles: files }),
       });
       const data = await res.json();
 
@@ -690,6 +690,7 @@ function BuilderContent() {
       fetch("/api/credits/balance").then(r => r.json()).then(d => setCredits(d.balance ?? null)).catch(() => {});
 
       if (data.files?.length > 0) {
+        let mergedFiles: FileNode[] = [];
         setFiles((prev) => {
           const updated = [...prev];
           for (const f of data.files as FileNode[]) {
@@ -698,17 +699,30 @@ function BuilderContent() {
           }
           // Fire-and-forget: persist updated files to project
           if (projectId) {
-            const merged = updated;
             fetch(`/api/projects/${projectId}`, {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ files: merged }),
+              body: JSON.stringify({ files: updated }),
             }).catch(() => {});
           }
+          mergedFiles = updated;
           return updated;
         });
         setActiveFile(data.files[0]);
         setRightTab("code");
+
+        // ── Auto-deploy when AI signals it ──────────────────────────────
+        if (data.auto_deploy && mergedFiles.length > 0) {
+          // Small delay so the file tree renders first
+          setTimeout(() => {
+            setMessages((prev) => [...prev, {
+              id: crypto.randomUUID(), role: "assistant",
+              content: "Deploying your app to Vercel…",
+              timestamp: new Date(),
+            }]);
+            handleDeployFiles(mergedFiles);
+          }, 800);
+        }
       }
       if (data.preview_url) { setPreviewUrl(data.preview_url); setRightTab("preview"); }
     } catch {
@@ -720,14 +734,129 @@ function BuilderContent() {
     } finally { setIsLoading(false); }
   }, [messages, projectId]);
 
-  async function handleDeploy() {
-    if (!files.length) return;
+  async function handleDeployFiles(filesToDeploy: FileNode[]) {
+    if (!filesToDeploy.length) return;
     setIsDeploying(true);
     setShowTerminal(true);
     setRightTab("preview");
     setDeployError(null);
 
     const ts = () => `[${new Date().toISOString().split("T")[1].slice(0, 12)}]`;
+    setTerminalLogs([`${ts()} [INFO] Starting deployment…`]);
+
+    async function streamLogs(lines: string[], delayMs = 120) {
+      for (const line of lines) {
+        await new Promise<void>((r) => setTimeout(r, delayMs));
+        setTerminalLogs((prev) => [...prev, line]);
+      }
+    }
+
+    let seenEventIds = new Set<string>();
+    async function pollLogs(deploymentId: string) {
+      try {
+        const res = await fetch(`/api/vercel/logs?deploymentId=${deploymentId}`);
+        if (!res.ok) return;
+        const events: Array<{ id?: string; type?: string; payload?: { text?: string } }> = await res.json();
+        const newLines: string[] = [];
+        for (const ev of events) {
+          const key = ev.id ?? JSON.stringify(ev);
+          if (seenEventIds.has(key)) continue;
+          seenEventIds.add(key);
+          const text = ev.payload?.text?.trim();
+          if (text) {
+            const prefix = ev.type === "stderr" ? "[WARN]" : "[LOG] ";
+            newLines.push(`${ts()} ${prefix} ${text}`);
+          }
+        }
+        if (newLines.length > 0) setTerminalLogs((prev) => [...prev, ...newLines]);
+      } catch { /* non-critical */ }
+    }
+
+    let deploymentId: string | null = null;
+
+    try {
+      const deployPromise = fetch("/api/builder/deploy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: filesToDeploy,
+          projectName: `masidy-${Date.now()}`,
+          projectId,
+          vercelProjectId: undefined,
+        }),
+      });
+
+      const buildingMessages = [
+        "Installing dependencies…",
+        "Compiling TypeScript…",
+        "Building Next.js app…",
+        "Optimising assets…",
+        "Uploading to edge network…",
+      ];
+      let msgIdx = 0;
+      const buildingInterval = setInterval(() => {
+        if (msgIdx < buildingMessages.length) {
+          setTerminalLogs((prev) => [...prev, `${ts()} [INFO] ${buildingMessages[msgIdx++]}`]);
+        }
+        if (deploymentId) pollLogs(deploymentId);
+      }, 3000);
+      pollIntervalRef.current = buildingInterval;
+
+      const res = await deployPromise;
+      clearInterval(buildingInterval);
+      pollIntervalRef.current = null;
+
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        const errMsg = data.error ?? "Deployment failed. Please try again.";
+        if (Array.isArray(data.logs) && data.logs.length > 0) await streamLogs(data.logs, 80);
+        setTerminalLogs((prev) => [...prev, `${ts()} [ERROR] ${errMsg}`]);
+        setDeployError(errMsg);
+        toast({ title: "Deploy failed", description: errMsg, variant: "destructive" });
+        setMessages((prev) => [...prev, {
+          id: crypto.randomUUID(), role: "assistant",
+          content: `Deploy failed: ${errMsg}`,
+          timestamp: new Date(),
+        }]);
+      } else {
+        deploymentId = data.deploymentId ?? null;
+        if (deploymentId) await pollLogs(deploymentId);
+        if (Array.isArray(data.logs) && data.logs.length > 0) await streamLogs(data.logs, 80);
+        setTerminalLogs((prev) => [...prev, `${ts()} [INFO] ✓ Build complete`, `${ts()} [INFO] ✓ Live at: ${data.url}`]);
+        setPreviewUrl(data.url);
+        setPreviewKey((k) => k + 1);
+        setRightTab("preview");
+        setMessages((prev) => [...prev, {
+          id: crypto.randomUUID(), role: "assistant",
+          content: `✓ Deployed! Live at: ${data.url}`,
+          timestamp: new Date(),
+        }]);
+        // Persist vercelProjectId back to project
+        if (projectId && data.vercelProjectId) {
+          fetch(`/api/projects/${projectId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ vercelProjectId: data.vercelProjectId }),
+          }).catch(() => {});
+        }
+      }
+    } catch (err) {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      const isNetworkError = err instanceof TypeError && err.message.toLowerCase().includes("fetch");
+      const errMsg = isNetworkError ? "Network error — check your connection and try again." : "Deployment failed. Please try again.";
+      setTerminalLogs((prev) => [...prev, `${ts()} [ERROR] ${errMsg}`]);
+      setDeployError(errMsg);
+      toast({ title: "Deploy failed", description: errMsg, variant: "destructive" });
+    } finally {
+      if (pollIntervalRef.current) { clearInterval(pollIntervalRef.current); pollIntervalRef.current = null; }
+      setIsDeploying(false);
+    }
+  }
+
+  async function handleDeploy() {
+    return handleDeployFiles(files);
+  }
 
     // Reset terminal and show initial log
     setTerminalLogs([`${ts()} [INFO] Starting deployment…`]);

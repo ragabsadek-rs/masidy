@@ -8,6 +8,11 @@ export const BuilderChatRequestSchema = z.object({
   })).min(1).max(100),
   model: z.enum(["lite", "standard", "opus"]).default("lite"),
   projectId: z.string().uuid().optional(),
+  existingFiles: z.array(z.object({
+    path: z.string(),
+    content: z.string(),
+    language: z.string(),
+  })).optional(),
 });
 
 // ── Builder deploy ─────────────────────────────────────────────────────────
