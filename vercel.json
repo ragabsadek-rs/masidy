@@ -3,5 +3,9 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install --legacy-peer-deps",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "alias": [
+    "masidy.app",
+    "www.masidy.app"
+  ]
 }
