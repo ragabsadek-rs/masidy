@@ -117,8 +117,8 @@ function ChatPanel({ messages, isLoading, onSend, onReset, credits }: {
   credits: number | null;
 }) {
   const [input, setInput] = useState("");
-  const [model, setModel] = useState<AgentModel>("standard");
-  const [modelLabel, setModelLabel] = useState("Masidy Auto");
+  const [model, setModel] = useState<AgentModel>("lite");
+  const [modelLabel, setModelLabel] = useState("Masidy Lite");
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [generateImages, setGenerateImages] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);

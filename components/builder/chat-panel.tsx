@@ -113,7 +113,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({ messages, isLoading, onSend, onReset }: ChatPanelProps) {
   const [input, setInput] = useState("");
-  const [model, setModel] = useState<AgentModel>("standard");
+  const [model, setModel] = useState<AgentModel>("lite");
   const [showModelPicker, setShowModelPicker] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
