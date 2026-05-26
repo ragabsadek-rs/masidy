@@ -6,25 +6,25 @@ const features = [
   {
     number: "01",
     title: "AI Code Generation",
-    description: "Describe your app in plain English. Claude AI writes production-ready Next.js code instantly.",
+    description: "Describe your app in plain English. Claude AI writes production-ready Next.js code instantly — pages, components, API routes, and configs.",
     visual: "ai",
   },
   {
     number: "02",
     title: "One-Click Deploy",
-    description: "Every build deploys live to Vercel automatically. Get a real URL in under 60 seconds.",
+    description: "Every build deploys live to Vercel automatically. Get a real URL in under 60 seconds. No config, no CI/CD setup.",
     visual: "deploy",
   },
   {
     number: "03",
-    title: "Full Dashboard",
-    description: "Manage deployments, domains, env vars, analytics, firewall, CDN, and storage from one place.",
+    title: "19+ MCP Tools",
+    description: "Masidy Max uses GitHub, Supabase, Stripe, Sentry, Datadog, Cloudflare, Linear, Notion, PostHog and more — autonomously.",
     visual: "collab",
   },
   {
     number: "04",
     title: "Credit-Based Pricing",
-    description: "Pay only for what you use. Credits never expire. Start with 10 free credits on signup.",
+    description: "Pay only for what you use. Lite (0.5 cr), Standard (2 cr), Max (5 cr). Credits never expire. Start with 10 free.",
     visual: "security",
   },
 ];

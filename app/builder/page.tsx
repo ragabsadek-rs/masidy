@@ -686,6 +686,17 @@ function BuilderContent() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
 
+      // Show tool execution log in terminal
+      if (Array.isArray(data.tool_log) && data.tool_log.length > 0) {
+        const ts = () => `[${new Date().toISOString().split("T")[1].slice(0, 12)}]`;
+        setShowTerminal(true);
+        setTerminalLogs((prev) => [
+          ...prev,
+          `${ts()} [${data.agent ?? "Agent"}] Starting…`,
+          ...data.tool_log.map((line: string) => `${ts()} ${line}`),
+        ]);
+      }
+
       // Refresh credits
       fetch("/api/credits/balance").then(r => r.json()).then(d => setCredits(d.balance ?? null)).catch(() => {});
 
