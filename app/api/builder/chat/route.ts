@@ -7,8 +7,8 @@ import { rateLimit, getRateLimitKey, getTimeUntilReset } from "@/lib/ratelimit";
 
 const MODEL_MAP = {
   lite:     { model: "claude-haiku-4-5",  action: "message_lite"     as CreditAction },
-  standard: { model: "claude-sonnet-4-5", action: "message_standard" as CreditAction },
-  opus:     { model: "claude-opus-4-5",   action: "message_opus"     as CreditAction },
+  standard: { model: "claude-sonnet-4-6", action: "message_standard" as CreditAction },
+  opus:     { model: "claude-opus-4-7",   action: "message_opus"     as CreditAction },
 };
 
 export async function POST(req: NextRequest) {
@@ -59,7 +59,8 @@ export async function POST(req: NextRequest) {
     }
 
     const systemPrompt = `You are Masidy, an expert AI software engineer.
-When asked to build or modify code, respond with JSON:
+Always respond with valid JSON only. Do not include markdown, analysis, or extra text outside the JSON object.
+When asked to build or modify code, return a complete project or feature in this shape:
 {
   "explanation": "brief explanation",
   "files": [
@@ -67,8 +68,9 @@ When asked to build or modify code, respond with JSON:
   ],
   "preview_url": null
 }
+If the user asks for a new application or startup landing page, include all required root files for a runnable Next.js app, such as package.json, tsconfig.json, next.config.mjs, app/layout.tsx, app/page.tsx, globals.css, and any other needed files.
 Use TypeScript, Tailwind CSS, and modern React patterns.
-For questions only: { "explanation": "your answer", "files": [] }`;
+For simple questions or clarifications only, return { "explanation": "your answer", "files": [] }.`;
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -94,12 +96,14 @@ For questions only: { "explanation": "your answer", "files": [] }`;
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text ?? "";
+    const text = data.content?.[0]?.text ?? data.completion ?? data.response?.content?.[0]?.text ?? "";
 
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) return NextResponse.json(JSON.parse(jsonMatch[0]));
-    } catch {}
+    } catch (parseError) {
+      console.error("[/api/builder/chat] JSON parse failed:", parseError, "raw response:", text);
+    }
 
     return NextResponse.json({ explanation: text, files: [] });
   } catch (err) {
